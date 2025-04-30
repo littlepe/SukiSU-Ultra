@@ -537,7 +537,7 @@ fun getKpmModuleInfo(name: String): String {
 
 fun controlKpmModule(name: String, args: String? = null): Int {
     val shell = getRootShell()
-    val cmd = "${getKpmmgrPath()} control $name ${args ?: ""}"
+    val cmd = """${getKpmmgrPath()} control $name "${args ?: ""}""""
     val result = runCmd(shell, cmd)
     return result.trim().toIntOrNull() ?: -1
 }

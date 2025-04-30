@@ -1,5 +1,6 @@
 @file:Suppress("UnstableApiUsage")
 
+import com.android.build.api.dsl.ApkSigningConfig
 import com.android.build.gradle.internal.api.BaseVariantOutputImpl
 import com.android.build.gradle.tasks.PackageAndroidArtifact
 
@@ -24,7 +25,17 @@ apksign {
     keyPasswordProperty = "KEY_PASSWORD"
 }
 
+
 android {
+
+    /**signingConfigs {
+        create("Debug") {
+            storeFile = file("D:\\other\\AndroidTool\\android_key\\keystore\\release-key.keystore")
+            storePassword = ""
+            keyAlias = ""
+            keyPassword = ""
+        }
+    }**/
     namespace = "com.sukisu.ultra"
 
     buildTypes {
@@ -33,6 +44,9 @@ android {
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
+        /**debug {
+            signingConfig = signingConfigs.named("Debug").get() as ApkSigningConfig
+        }**/
     }
 
     buildFeatures {

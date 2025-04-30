@@ -1,9 +1,12 @@
 package com.sukisu.ultra.ui.component
 
 import android.content.Context
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.*
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -11,11 +14,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import com.sukisu.ultra.R
 import com.sukisu.ultra.ui.theme.ThemeConfig
-import com.sukisu.ultra.ui.theme.getCardElevation
-import androidx.compose.foundation.shape.CornerSize
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.SdStorage
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 
 /**
  * 槽位选择对话框组件
@@ -43,38 +47,26 @@ fun SlotSelectionDialog(
     }
 
     if (show) {
-        val backgroundColor = if (!ThemeConfig.useDynamicColor) {
-            ThemeConfig.currentTheme.ButtonContrast.copy(alpha = 1.0f)
+        val cardColor = if (!ThemeConfig.useDynamicColor) {
+            ThemeConfig.currentTheme.ButtonContrast
         } else {
-            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 1.0f)
+            MaterialTheme.colorScheme.surfaceContainerHigh
         }
 
-        Dialog(onDismissRequest = onDismiss) {
-            Card(
-                shape = MaterialTheme.shapes.medium.copy(
-                    topStart = CornerSize(16.dp),
-                    topEnd = CornerSize(16.dp),
-                    bottomEnd = CornerSize(16.dp),
-                    bottomStart = CornerSize(16.dp)
-                ),
-                colors = CardDefaults.cardColors(
-                    containerColor = backgroundColor
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = getCardElevation())
-            ) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = {
+                Text(
+                    text = stringResource(id = R.string.select_slot_title),
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            },
+            text = {
                 Column(
-                    modifier = Modifier
-                        .padding(24.dp)
-                        .fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    modifier = Modifier.padding(vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Text(
-                        text = stringResource(id = R.string.select_slot_title),
-                        style = MaterialTheme.typography.headlineSmall,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
-
                     if (errorMessage != null) {
                         Text(
                             text = "Error: $errorMessage",
@@ -105,88 +97,134 @@ fun SlotSelectionDialog(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
+                    // Horizontal arrangement for slot options with highlighted current slot
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        val isDefaultSlotA = currentSlot == "_a" || currentSlot == "a"
-                        Button(
-                            onClick = { onSlotSelected("a") },
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isDefaultSlotA)
-                                    MaterialTheme.colorScheme.primary
-                                else
-                                    MaterialTheme.colorScheme.primaryContainer,
-                                contentColor = if (isDefaultSlotA)
-                                    MaterialTheme.colorScheme.onPrimary
-                                else
-                                    MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        ) {
-                            Text(
-                                text = stringResource(id = R.string.slot_a),
-                                style = MaterialTheme.typography.labelLarge
-                            )
-                        }
-
-                        val isDefaultSlotB = currentSlot == "_b" || currentSlot == "b"
-                        Button(
-                            onClick = { onSlotSelected("b") },
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isDefaultSlotB)
-                                    MaterialTheme.colorScheme.secondary
-                                else
-                                    MaterialTheme.colorScheme.secondaryContainer,
-                                contentColor = if (isDefaultSlotB)
-                                    MaterialTheme.colorScheme.onSecondary
-                                else
-                                    MaterialTheme.colorScheme.onSecondaryContainer
-                            )
-                        ) {
-                            Text(
-                                text = stringResource(id = R.string.slot_b),
-                                style = MaterialTheme.typography.labelLarge
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    HorizontalDivider(
-                        modifier = Modifier.fillMaxWidth(),
-                        thickness = 1.dp,
-                        color = MaterialTheme.colorScheme.outline
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        TextButton(
-                            onClick = onDismiss,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(text = stringResource(id = android.R.string.cancel))
-                        }
-                        TextButton(
-                            onClick = {
-                                currentSlot?.let { onSlotSelected(it) }
-                                onDismiss()
-                            },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(text = stringResource(id = android.R.string.ok))
+                        val slotOptions = listOf(
+                            ListOption(
+                                titleText = stringResource(id = R.string.slot_a),
+                                subtitleText = if (currentSlot == "a" || currentSlot == "_a") stringResource(id = R.string.currently_selected) else null,
+                                icon = Icons.Filled.SdStorage
+                            ),
+                            ListOption(
+                                titleText = stringResource(id = R.string.slot_b),
+                                subtitleText = if (currentSlot == "b" || currentSlot == "_b") stringResource(id = R.string.currently_selected) else null,
+                                icon = Icons.Filled.SdStorage
+                            )
+                        )
+
+                        slotOptions.forEachIndexed { index, option ->
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(horizontal = 8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(MaterialTheme.shapes.medium)
+                                        .background(
+                                            color = if (option.subtitleText != null) {
+                                                MaterialTheme.colorScheme.primary.copy(alpha = 0.9f)
+                                            } else {
+                                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                                            }
+                                        )
+                                        .clickable {
+                                            onSlotSelected(
+                                                when (index) {
+                                                    0 -> "a"
+                                                    else -> "b"
+                                                }
+                                            )
+                                        }
+                                        .padding(vertical = 12.dp, horizontal = 16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = option.icon,
+                                        contentDescription = null,
+                                        tint = if (option.subtitleText != null) {
+                                            MaterialTheme.colorScheme.onPrimary
+                                        } else {
+                                            MaterialTheme.colorScheme.primary
+                                        },
+                                        modifier = Modifier
+                                            .padding(end = 16.dp)
+                                            .size(24.dp)
+                                    )
+                                    Column(
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Text(
+                                            text = option.titleText,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = if (option.subtitleText != null) {
+                                                MaterialTheme.colorScheme.onPrimary
+                                            } else {
+                                                MaterialTheme.colorScheme.primary
+                                            }
+                                        )
+                                        option.subtitleText?.let {
+                                            Text(
+                                                text = it,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = if (true) {
+                                                    MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
+                                                } else {
+                                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
-            }
-        }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        currentSlot?.let { onSlotSelected(it) }
+                        onDismiss()
+                    }
+                ) {
+                    Text(
+                        text = stringResource(android.R.string.ok),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = onDismiss
+                ) {
+                    Text(
+                        text = stringResource(android.R.string.cancel),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            },
+            containerColor = cardColor,
+            shape = MaterialTheme.shapes.extraLarge,
+            tonalElevation = 4.dp
+        )
     }
 }
 
-// 获取当前槽位信息
+// Data class for list options
+data class ListOption(
+    val titleText: String,
+    val subtitleText: String?,
+    val icon: ImageVector
+)
+
+// Utility function to get current slot
 private fun getCurrentSlot(context: Context): String? {
     return runCommandGetOutput(true, "getprop ro.boot.slot_suffix")?.let {
         if (it.startsWith("_")) it.substring(1) else it

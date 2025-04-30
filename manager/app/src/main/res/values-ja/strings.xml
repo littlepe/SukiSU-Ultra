@@ -203,8 +203,7 @@
     <string name="dynamic_color_title">ダイナミックカラー</string>
     <string name="dynamic_color_summary">システムテーマのダイナミックカラーを使用します</string>
     <string name="choose_theme_color">テーマカラーを選択</string>
-    <string name="color_default">ホワイト</string>
-    <string name="color_blue">ブルー</string>
+    <string name="color_default">ブルー</string>
     <string name="color_green">グリーン</string>
     <string name="color_purple">パープル</string>
     <string name="color_orange">オレンジ</string>

@@ -201,8 +201,7 @@
     <string name="dynamic_color_title">Màu sắc động</string>
     <string name="dynamic_color_summary">Màu sắc động sử dụng chủ đề hệ thống</string>
     <string name="choose_theme_color">Chọn màu chủ đề</string>
-    <string name="color_default">Trắng</string>
-    <string name="color_blue">Xanh dương</string>
+    <string name="color_default">Xanh dương</string>
     <string name="color_green">Xanh lá</string>
     <string name="color_purple">Tím</string>
     <string name="color_orange">Cam</string>
