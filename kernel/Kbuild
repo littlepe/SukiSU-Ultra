@@ -46,59 +46,36 @@ obj-$(CONFIG_KSU) += kernelsu.o
 
 obj-$(CONFIG_KPM) += kpm/
 
-REPO_OWNER := SukiSU-Ultra
-REPO_NAME := SukiSU-Ultra
-REPO_BRANCH := main
 KSU_VERSION_API := 4.1.0
+KSU_VERSION := 40266
 
 GIT_BIN := /usr/bin/env PATH="$$PATH":/usr/bin:/usr/local/bin git
-CURL_BIN := /usr/bin/env PATH="$$PATH":/usr/bin:/usr/local/bin curl
 
-KSU_GITHUB_VERSION := $(shell $(CURL_BIN) -s "https://api.github.com/repos/$(REPO_OWNER)/$(REPO_NAME)/releases/latest" | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/')
-KSU_GITHUB_VERSION_COMMIT := $(shell $(CURL_BIN) -sI "https://api.github.com/repos/$(REPO_OWNER)/$(REPO_NAME)/commits?sha=$(REPO_BRANCH)&per_page=1" | grep -i "link:" | sed -n 's/.*page=\([0-9]*\)>; rel="last".*/\1/p')
-
-ifeq ($(findstring $(srctree),$(src)),$(srctree))
-  KSU_SRC := $(src)
-else
-  KSU_SRC := $(srctree)/$(src)
+ifeq ($(KSU_SRC),)
+  ifeq ($(findstring $(srctree),$(src)),$(srctree))
+    KSU_SRC := $(src)
+  else
+    KSU_SRC := $(srctree)/$(src)
+  endif
 endif
 
 LOCAL_GIT_EXISTS := $(shell test -e $(KSU_SRC)/../.git && echo 1 || echo 0)
 
 define get_ksu_version_full
-v$1-$(shell cd $(KSU_SRC); $(GIT_BIN) rev-parse --short=8 HEAD)@$(shell cd $(KSU_SRC); $(GIT_BIN) rev-parse --abbrev-ref HEAD)
+v$(KSU_VERSION_API)-$(shell cd $(KSU_SRC); $(GIT_BIN) rev-parse --short=8 HEAD)@$(shell cd $(KSU_SRC); $(GIT_BIN) rev-parse --abbrev-ref HEAD)
 endef
 
-ifeq ($(KSU_GITHUB_VERSION_COMMIT),)
-  ifeq ($(LOCAL_GIT_EXISTS),1)
-    $(shell cd $(KSU_SRC); [ -f ../.git/shallow ] && $(GIT_BIN) fetch --unshallow)
-    KSU_LOCAL_VERSION := $(shell cd $(KSU_SRC); $(GIT_BIN) rev-list --count $(REPO_BRANCH))
-    KSU_VERSION := $(shell expr 40000 + $(KSU_LOCAL_VERSION) - 2815)
-    $(info -- $(REPO_NAME) version (local .git): $(KSU_VERSION))
-  else
-    KSU_VERSION := 13000
-    $(warning -- Could not fetch version online or via local .git! Using fallback version: $(KSU_VERSION))
-  endif
+ifeq ($(LOCAL_GIT_EXISTS),1)
+  $(shell cd $(KSU_SRC); [ -f ../.git/shallow ] && $(GIT_BIN) fetch --unshallow 2>/dev/null || true)
+  KSU_VERSION_FULL := $(call get_ksu_version_full)
+  $(info -- Version (local .git): $(KSU_VERSION_FULL))
 else
-  KSU_VERSION := $(shell expr 40000 + $(KSU_GITHUB_VERSION_COMMIT) - 2815)
-  $(info -- $(REPO_NAME) version (GitHub): $(KSU_VERSION))
+  KSU_VERSION_FULL := v$(KSU_VERSION_API)-unknown@unknown
+  $(warning -- Version (no git): $(KSU_VERSION_FULL))
 endif
 
-ifeq ($(KSU_GITHUB_VERSION),)
-  ifeq ($(LOCAL_GIT_EXISTS),1)
-    $(shell cd $(KSU_SRC); [ -f ../.git/shallow ] && $(GIT_BIN) fetch --unshallow)
-    KSU_VERSION_FULL := $(call get_ksu_version_full,$(KSU_VERSION_API))
-    $(info -- $(REPO_NAME) version (local .git): $(KSU_VERSION_FULL))
-    $(info -- $(REPO_NAME) Formatted version (local .git): $(KSU_VERSION))
-  else
-    KSU_VERSION_FULL := v$(KSU_VERSION_API)-$(REPO_NAME)-unknown@unknown
-    $(warning -- $(REPO_NAME) version: $(KSU_VERSION_FULL))
-  endif
-else
-  $(shell cd $(KSU_SRC); [ -f ../.git/shallow ] && $(GIT_BIN) fetch --unshallow)
-  KSU_VERSION_FULL := $(call get_ksu_version_full,$(KSU_GITHUB_VERSION))
-  $(info -- $(REPO_NAME) version (Github): $(KSU_VERSION_FULL))
-endif
+$(info -- Fixed KSU_VERSION: $(KSU_VERSION))
+$(info -- Fixed KSU_VERSION_API: $(KSU_VERSION_API))
 
 ccflags-y += -DKSU_VERSION=$(KSU_VERSION)
 ccflags-y += -DKSU_VERSION_FULL=\"$(KSU_VERSION_FULL)\"
