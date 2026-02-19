@@ -67,17 +67,15 @@ KSU_TAG_NAME    := v4.1.1
 
 KSU_COMMIT_SHA  := $(shell cd $(KSU_SRC); $(GIT_BIN) rev-parse --short=8 HEAD 2>/dev/null || echo "unknown")
 KSU_BRANCH_NAME := $(shell cd $(KSU_SRC); $(GIT_BIN) branch --show-current 2>/dev/null || echo "unknown")
+KSU_REPO_NAME   := $(shell basename $(KSU_SRC) 2>/dev/null || echo "unknown")
 
-# make ddk happy
-ifneq ($(KDIR),)
 CONFIG_KSU_FULL_NAME_FORMAT := "%TAG_NAME%-%COMMIT_SHA%@%BRANCH_NAME%"
-endif
 
 # call subst to process placeholder
 KSU_VERSION_FULL := $(subst ",,$(CONFIG_KSU_FULL_NAME_FORMAT))
 KSU_VERSION_FULL := $(subst %TAG_NAME%,$(KSU_TAG_NAME),$(KSU_VERSION_FULL))
 KSU_VERSION_FULL := $(subst %COMMIT_SHA%,$(KSU_COMMIT_SHA),$(KSU_VERSION_FULL))
-KSU_VERSION_FULL := $(subst %REPO_NAME%,KernelSU,$(KSU_VERSION_FULL))
+KSU_VERSION_FULL := $(subst %REPO_NAME%,$(KSU_REPO_NAME),$(KSU_VERSION_FULL))
 KSU_VERSION_FULL := $(subst %BRANCH_NAME%,$(KSU_BRANCH_NAME),$(KSU_VERSION_FULL))
 KSU_VERSION_FULL := $(subst %KSU_VERSION%,$(KSU_VERSION),$(KSU_VERSION_FULL))
 
