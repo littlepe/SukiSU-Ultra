@@ -63,7 +63,8 @@ $(shell cd $(KSU_SRC); [ -f ../.git/shallow ] && $(GIT_BIN) fetch --unshallow)
 KSU_LOCAL_VERSION := $(shell cd $(KSU_SRC); $(GIT_BIN) rev-list --count HEAD)
 KSU_VERSION := $(shell expr 30000 + $(KSU_LOCAL_VERSION) + 700)
 
-KSU_TAG_NAME    := $(shell cd $(KSU_SRC); $(GIT_BIN) describe --abbrev=0 --tags 2>/dev/null || echo "unknown")
+KSU_TAG_NAME    := v4.1.1
+
 KSU_COMMIT_SHA  := $(shell cd $(KSU_SRC); $(GIT_BIN) rev-parse --short=8 HEAD 2>/dev/null || echo "unknown")
 KSU_BRANCH_NAME := $(shell cd $(KSU_SRC); $(GIT_BIN) branch --show-current 2>/dev/null || echo "unknown")
 
@@ -87,7 +88,11 @@ ccflags-y += -DKSU_VERSION=$(KSU_VERSION)
 ccflags-y += -DKSU_VERSION_FULL=\"$(KSU_VERSION_FULL)\"
 
 ifeq ($(CONFIG_KSU_MULTI_MANAGER_SUPPORT), y)
-$(info -- Supported Unofficial Manager: MKSU, RKSU, SukiSU-Ultra, ReSukiSU )
+    $(info -- Supported Manager: SukiSU-Ultra, ReSukiSU, KSU, MKSU, RKSU, KowSU, KernelSU-Next, WildSU)
+else ifeq ($(CONFIG_KSU_MULTI_MANAGER_SUPPORT), n)
+    $(info -- Supported Manager: SukiSU-Ultra, ReSukiSU)
+else
+    $(info -- Supported Manager: SukiSU-Ultra, ReSukiSU)
 endif
 
 ifeq ($(CONFIG_KSU_MANUAL_HOOK), y)

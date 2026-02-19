@@ -16,15 +16,25 @@
 #define EXPECTED_HASH_RSUNTK                                                   \
     "f415f4ed9435427e1fdf7f1fccd4dbc07b3d6b8751e4dbcec6f19671f427870b"
 
-// ShirkNeko/KernelSU
+// KowX712/KernelSU
+#define EXPECTED_SIZE_KOWX712 0x375
+#define EXPECTED_HASH_KOWX712                                                  \
+	"484fcba6e6c43b1fb09700633bf2fb4758f13cb0b2f4457b80d075084b26c588"
+
+// rifsxd/KernelSU-Next
+#define EXPECTED_SIZE_RIFSXD 0x3e6
+#define EXPECTED_HASH_RIFSXD                                                   \
+    "79e590113c4c4c0c222978e413a5faa801666957b1212a328e46c00c69821bf7"
+
+// WildKernels/Wild_KSU
+#define EXPECTED_SIZE_WILDKERNELS 0x381
+#define EXPECTED_HASH_WILDKERNELS                                              \
+    "52d52d8c8bfbe53dc2b6ff1c613184e2c03013e090fe8905d8e3d5dc2658c2e4"
+
+// SukiSU-Ultra/SukiSU-Ultra
 #define EXPECTED_SIZE_SHIRKNEKO 0x35c
 #define EXPECTED_HASH_SHIRKNEKO                                                \
     "947ae944f3de4ed4c21a7e4f7953ecf351bfa2b36239da37a34111ad29993eef"
-
-// Neko/KernelSU
-#define EXPECTED_SIZE_NEKO 0x29c
-#define EXPECTED_HASH_NEKO                                                     \
-    "946b0557e450a6430a0ba6b6bccee5bc12953ec8735d55e26139b0ec12303b21"
 
 // ReSukiSU/ReSukiSU
 #define EXPECTED_SIZE_RESUKISU 0x377
