@@ -309,6 +309,11 @@ ifeq ($(CONFIG_KSU_MANUAL_HOOK), y)
     $(error You should integrate KernelSU in your kernel correctly.)
   endif
 
+  ifeq ($(shell grep -q "is_ksu_transition" $(srctree)/security/selinux/hooks.c; echo $$?),0)
+    $(info -- is_ksu_transition is incompatible hook)
+    $(error You should integrate $(REPO_NAME) in your kernel correctly.)
+  endif
+
   ifeq ($(CONFIG_KSU_MANUAL_HOOK_AUTO_INPUT_HOOK), y)
     $(info -- KernelSU/manual_hook: You are using input_handler for input hooks.)
   else
@@ -362,21 +367,14 @@ ifeq ($(CONFIG_KSU_MANUAL_HOOK), y)
     $(error You should integrate KernelSU in your kernel.)
   endif
 
-  ifeq ($(shell test $(VERSION) -lt 4 || { test $(VERSION) -eq 4 && test $(PATCHLEVEL) -lt 10; } && echo y),y)
-    ifeq ($(shell grep -q "is_ksu_transition" $(srctree)/security/selinux/hooks.c; echo $$?),0)
-      $(info -- KernelSU/manual_hook: is_ksu_transition found)
-    else
-      $(info -- You lost is_ksu_transition hook in your kernel)
-      $(error You should integrate KernelSU in your kernel.)
-    endif
-  endif
 endif
 
 ifneq ($(KERNEL_TYPE), GKI 2.0)
     ifeq ($(KSU_TP_HOOK), y)
-        $(info -- Error: KernelSU TP Hooks are only supported on GKI 2.0 kernels.)
+        $(info -- KernelSU TP Hooks are only supported on GKI 2.0 kernels.)
         $(info -- Current Kernel Type: $(KERNEL_TYPE))
         $(info -- If you really want continue, goto Kbuild and comment out this warning.)
+        $(info -- Mostly, this error is because you forget enable some kernel configuration.)
         $(error TP hooks are incompatible with Non-GKI/GKI 1.0 kernels in this configuration.)
     endif
 endif

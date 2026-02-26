@@ -231,20 +231,6 @@ static inline bool is_sid_match(const struct cred *cred, u32 cached_sid,
     return is_sid_match_tsec(tsec, cached_sid, fallback_context);
 }
 
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(4, 19, 0)
-bool __maybe_unused
-is_ksu_transition(const struct task_security_struct *old_tsec,
-                  const struct task_security_struct *new_tsec)
-{
-    bool allowed = false;
-
-    allowed = is_sid_match_tsec(old_tsec, cached_init_sid, INIT_CONTEXT) &&
-              is_sid_match_tsec(new_tsec, cached_su_sid, KERNEL_SU_CONTEXT);
-
-    return allowed;
-}
-#endif
-
 bool is_task_ksu_domain(const struct cred *cred)
 {
     return is_sid_match(cred, cached_su_sid, KERNEL_SU_CONTEXT);
