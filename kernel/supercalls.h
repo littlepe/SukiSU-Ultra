@@ -133,6 +133,17 @@ struct ksu_enable_kpm_cmd {
     __u8 enabled; // Output: true if KPM is enabled
 };
 
+#ifdef CONFIG_KSU_MULTI_MANAGER_SUPPORT
+// Commands for multi-manager support
+struct ksu_get_hook_mode_cmd {
+	char mode[16];
+};
+
+struct ksu_get_version_tag_cmd {
+	char tag[32];
+};
+#endif
+
 #define DYNAMIC_MANAGER_OP_SET 0
 #define DYNAMIC_MANAGER_OP_GET 1
 #define DYNAMIC_MANAGER_OP_WIPE 2
@@ -186,6 +197,11 @@ struct ksu_get_managers_cmd {
 #define KSU_IOCTL_DYNAMIC_MANAGER _IOC(_IOC_READ | _IOC_WRITE, 'K', 103, 0)
 // 104 = old get_managers, deprecated
 #define KSU_IOCTL_GET_MANAGERS _IOC(_IOC_READ | _IOC_WRITE, 'K', 105, 0)
+// KernelSU-Next manager support (multi-manager)
+#ifdef CONFIG_KSU_MULTI_MANAGER_SUPPORT
+#define KSU_IOCTL_GET_HOOK_MODE _IOC(_IOC_READ, 'K', 98, 0)
+#define KSU_IOCTL_GET_VERSION_TAG _IOC(_IOC_READ, 'K', 99, 0)
+#endif
 
 // IOCTL handler types
 typedef int (*ksu_ioctl_handler_t)(void __user *arg);
