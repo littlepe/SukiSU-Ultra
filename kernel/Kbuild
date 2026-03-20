@@ -71,7 +71,7 @@ KSU_REPO_NAME   := $(shell basename $(KSU_SRC) 2>/dev/null || echo "unknown")
 
 CONFIG_KSU_FULL_NAME_FORMAT := "%TAG_NAME%-%COMMIT_SHA%@%BRANCH_NAME%"
 
-# call subst to process placeholder
+# call subst to process placeholders
 KSU_VERSION_FULL := $(subst ",,$(CONFIG_KSU_FULL_NAME_FORMAT))
 KSU_VERSION_FULL := $(subst %TAG_NAME%,$(KSU_TAG_NAME),$(KSU_VERSION_FULL))
 KSU_VERSION_FULL := $(subst %COMMIT_SHA%,$(KSU_COMMIT_SHA),$(KSU_VERSION_FULL))
@@ -219,6 +219,13 @@ $(info -- KernelSU/compat/samsung: SEC_SELINUX_PORTING_COMMON found)
 ccflags-y += -DSAMSUNG_SELINUX_PORTING
 endif
 
+## For Huawei EMUI10+ check  
+# Scan Kernel Tree to find CONFIG_HKIP_SELINUX_PROT in ebitmap.h
+ifeq ($(shell grep -q "CONFIG_HKIP_SELINUX_PROT" $(srctree)/security/selinux/ss/ebitmap.h 2>/dev/null; echo $$?),0)
+  $(info -- $(REPO_NAME): CONFIG_HKIP_SELINUX_PROT found!)
+  ccflags-y += -DKSU_COMPAT_IS_HISI_HM2
+endif
+
 # Function proc_ops check
 ifeq ($(shell grep -q "struct proc_ops " $(srctree)/include/linux/proc_fs.h; echo $$?),0)
 $(info -- KernelSU/compat: proc_ops found)
@@ -230,6 +237,20 @@ endif
 ifeq ($(shell grep -q "bitmap_zalloc" $(srctree)/include/linux/bitmap.h; echo $$?),0)
 $(info -- KernelSU/compat: bitmap_zalloc found)
 ccflags-y += -DKSU_COMPAT_HAS_BITMAP_ALLOC_HELPER
+endif
+
+# policy mutex
+# kernel 5.10+
+ifeq ($(shell grep -q "policy_mutex" $(srctree)/security/selinux/include/security.h; echo $$?),0)
+$(info -- $(REPO_NAME)/compat: policy_mutex found)
+ccflags-y += -DKSU_COMPAT_HAS_POLICY_MUTEX
+endif
+
+# policy rwlock
+# kernel 4.14-
+ifeq ($(shell grep -q "^DEFINE_RWLOCK(policy_rwlock);" $(srctree)/security/selinux/ss/services.c; echo $$?),0)
+$(info -- $(REPO_NAME)/compat: exported policy_rwlock found!)
+ccflags-y += -DKSU_COMPAT_HAS_EXPORTED_POLICY_RWLOCK
 endif
 
 # Custom Signs
@@ -369,14 +390,16 @@ ifeq ($(CONFIG_KSU_MANUAL_HOOK), y)
 
 endif
 
-ifneq ($(KERNEL_TYPE), GKI 2.0)
-    ifeq ($(KSU_TP_HOOK), y)
-        $(info -- KernelSU TP Hooks are only supported on GKI 2.0 kernels.)
-        $(info -- Current Kernel Type: $(KERNEL_TYPE))
-        $(info -- If you really want continue, goto Kbuild and comment out this warning.)
-        $(info -- Mostly, this error is because you forget enable some kernel configuration.)
-        $(error TP hooks are incompatible with Non-GKI/GKI 1.0 kernels in this configuration.)
-    endif
+ifeq ($(CONFIG_KSU),y)
+  ifneq ($(KERNEL_TYPE), GKI 2.0)
+      ifeq ($(KSU_TP_HOOK), y)
+          $(info -- $(REPO_NAME) TP Hooks are only supported on GKI 2.0 kernels.)
+          $(info -- Current Kernel Type: $(KERNEL_TYPE))
+          $(info -- If you really want to continue, go to Kbuild and comment out this warning.)
+          $(info -- Usually, this error occurs because you forgot to enable some kernel configurations.)
+          $(error TP hooks are incompatible with Non-GKI/GKI 1.0 kernels in this configuration.)
+      endif
+  endif
 endif
 
 # Keep a new line here!! Because someone may append config

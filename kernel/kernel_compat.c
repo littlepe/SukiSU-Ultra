@@ -14,7 +14,9 @@
 #include "kernel_compat.h"
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0) ||                           \
-    defined(CONFIG_IS_HW_HISI) || defined(CONFIG_KSU_ALLOWLIST_WORKAROUND)
+    defined(KSU_COMPAT_IS_HISI_LEGACY) ||                                      \
+    defined(KSU_COMPAT_IS_HISI_LEGACY_HM2) ||                                  \
+    defined(CONFIG_KSU_ALLOWLIST_WORKAROUND)
 #include <linux/key.h>
 #include <linux/errno.h>
 #include <linux/cred.h>
@@ -46,7 +48,9 @@ static int install_session_keyring(struct key *keyring)
 struct file *ksu_filp_open_compat(const char *filename, int flags, umode_t mode)
 {
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0) ||                           \
-    defined(CONFIG_IS_HW_HISI) || defined(CONFIG_KSU_ALLOWLIST_WORKAROUND)
+    defined(KSU_COMPAT_IS_HISI_LEGACY) ||                                      \
+    defined(KSU_COMPAT_IS_HISI_LEGACY_HM2) ||                                  \
+    defined(CONFIG_KSU_ALLOWLIST_WORKAROUND)
     if (init_session_keyring != NULL && !current_cred()->session_keyring &&
         (current->flags & PF_WQ_WORKER)) {
         pr_info("installing init session keyring for older kernel\n");
@@ -197,8 +201,8 @@ void *ksu_compat_kvrealloc(const void *p, size_t oldsize, size_t newsize,
 #endif
 
 #ifndef KSU_COMPAT_HAS_BITMAP_ALLOC_HELPER
-// kernel below 4.19 maybe not have 3 helper, but impl that is very easy
-// copy from https://github.com/torvalds/linux/commit/c42b65e363ce97a828f81b59033c3558f8fa7f70
+// kernels below 4.19 may not have these three helpers, but implementing them is straightforward.
+// copied from: https://github.com/torvalds/linux/commit/c42b65e363ce97a828f81b59033c3558f8fa7f70
 unsigned long *ksu_bitmap_alloc(unsigned int nbits, gfp_t flags)
 {
     return kmalloc_array(BITS_TO_LONGS(nbits), sizeof(unsigned long), flags);
