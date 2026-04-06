@@ -1,35 +1,39 @@
-kernelsu-objs := ksu.o
-kernelsu-objs += allowlist.o
-kernelsu-objs += dynamic_manager.o
-kernelsu-objs += app_profile.o
-kernelsu-objs += apk_sign.o
-kernelsu-objs += sucompat.o
+kernelsu-objs := core/init.o
+kernelsu-objs += policy/allowlist.o
+kernelsu-objs += policy/app_profile.o
+kernelsu-objs += policy/feature.o
+kernelsu-objs += feature/sucompat.o
+kernelsu-objs += feature/kernel_umount.o
+kernelsu-objs += feature/sulog.o
+kernelsu-objs += hook/setuid_hook.o
 
-kernelsu-objs += throne_tracker.o
-kernelsu-objs += pkg_observer.o
-kernelsu-objs += setuid_hook.o
-
-ifeq ($(CONFIG_KSU_MANUAL_HOOK), y)
-ifeq ($(shell test $(VERSION) -lt 6 || { test $(VERSION) -eq 6 && test $(PATCHLEVEL) -lt 8; } && echo y),y)
-kernelsu-objs += lsm_hooks.o
+ifndef CONFIG_KSU_DISABLE_MANAGER
+kernelsu-objs += feature/dynamic_manager.o
+kernelsu-objs += manager/apk_sign.o
+kernelsu-objs += manager/throne_tracker.o
+kernelsu-objs += manager/manager.o
 endif
-endif
 
-kernelsu-objs += kernel_compat.o
-kernelsu-objs += kernel_umount.o
-kernelsu-objs += supercalls.o
-kernelsu-objs += su_mount_ns.o
-kernelsu-objs += feature.o
-kernelsu-objs += throne_tracker.o
-kernelsu-objs += ksud.o
-kernelsu-objs += seccomp_cache.o
-kernelsu-objs += file_wrapper.o
-kernelsu-objs += sulog.o
-kernelsu-objs += manager.o
+kernelsu-objs += compat/kernel_compat.o
+kernelsu-objs += infra/su_mount_ns.o
+kernelsu-objs += infra/seccomp_cache.o
+kernelsu-objs += infra/file_wrapper.o
+kernelsu-objs += runtime/boot_event.o
+kernelsu-objs += runtime/ksud_integration.o
 
 kernelsu-objs += selinux/selinux.o
 kernelsu-objs += selinux/sepolicy.o
 kernelsu-objs += selinux/rules.o
+
+kernelsu-objs += supercall/dispatch.o
+kernelsu-objs += supercall/perm.o
+kernelsu-objs += supercall/supercall.o
+
+ifeq ($(CONFIG_KPM), y)
+kernelsu-objs += kpm/kpm.o
+kernelsu-objs += kpm/compact.o
+kernelsu-objs += kpm/super_access.o
+endif
 
 ccflags-y += -Wno-implicit-function-declaration -Wno-strict-prototypes 
 ccflags-y += $(call cc-disable-warning, int-conversion)
@@ -37,11 +41,10 @@ ccflags-y += -Wno-declaration-after-statement -Wno-unused-function -Wno-unused-v
 ccflags-y += -Wno-int-to-pointer-cast -Wno-declaration-after-statement
 
 ccflags-y += -I$(srctree)/security/selinux -I$(srctree)/security/selinux/include
-ccflags-y += -I$(objtree)/security/selinux -include $(srctree)/include/uapi/asm-generic/errno.h
+ccflags-y += -I$(srctree)/$(src) -I$(srctree)/$(src)/include
+ccflags-y += -I$(src) -I$(src)/include
 
 obj-$(CONFIG_KSU) += kernelsu.o
-
-obj-$(CONFIG_KPM) += kpm/
 
 KDIR := $(KDIR)
 
@@ -63,7 +66,7 @@ $(shell cd $(KSU_SRC); [ -f ../.git/shallow ] && $(GIT_BIN) fetch --unshallow)
 KSU_LOCAL_VERSION := $(shell cd $(KSU_SRC); $(GIT_BIN) rev-list --count HEAD)
 KSU_VERSION := $(shell expr 30000 + $(KSU_LOCAL_VERSION) + 700)
 
-KSU_TAG_NAME    := v4.1.1
+KSU_TAG_NAME    := v4.1.2
 
 KSU_COMMIT_SHA  := $(shell cd $(KSU_SRC); $(GIT_BIN) rev-parse --short=8 HEAD 2>/dev/null || echo "unknown")
 KSU_BRANCH_NAME := $(shell cd $(KSU_SRC); $(GIT_BIN) branch --show-current 2>/dev/null || echo "unknown")
@@ -87,6 +90,7 @@ ccflags-y += -DKSU_VERSION_FULL=\"$(KSU_VERSION_FULL)\"
 
 ifeq ($(CONFIG_KSU_MULTI_MANAGER_SUPPORT), y)
     $(info -- Supported Manager: SukiSU-Ultra, ReSukiSU, KSU, MKSU, RKSU, KowSU, MamboSU, KernelSU-Next, WildSU)
+    ccflags-y += -DCONFIG_KSU_MULTI_MANAGER_SUPPORT
 else ifeq ($(CONFIG_KSU_MULTI_MANAGER_SUPPORT), n)
     $(info -- Supported Manager: SukiSU-Ultra, ReSukiSU)
 else
@@ -117,6 +121,19 @@ endif
 $(info -- KERNEL_VERSION: $(KERNEL_VERSION))
 $(info -- KERNEL_TYPE: $(KERNEL_TYPE))
 
+ifeq ($(CONFIG_KSU),y)
+  ifneq ($(KERNEL_TYPE), GKI 2.0)
+      ifeq ($(KSU_TP_HOOK), y)
+          $(info -- $(REPO_NAME) TP Hooks are only supported on GKI 2.0 kernels.)
+          $(info -- Current Kernel Type: $(KERNEL_TYPE))
+          $(info -- If you really want to continue, go to Kbuild and comment out this warning.)
+          $(info -- Usually, this error occurs because you forgot to enable some kernel configurations.)
+          $(info -- Read: https://resukisu.github.io/guide/manual-integrate.html)
+          $(error TP hooks are incompatible with Non-GKI/GKI 1.0 kernels in this configuration.)
+      endif
+  endif
+endif
+
 # Check if KPM is enabled
 ifeq ($(CONFIG_KPM), y)
 $(info -- KPM is enabled)
@@ -126,132 +143,47 @@ $(info -- KPM is disabled)
 endif
 
 ifeq ($(KSU_TP_HOOK), y)
-kernelsu-objs += syscall_hook_manager.o
-kernelsu-objs += util.o
+  ifndef CONFIG_KSU_DISABLE_MANAGER
+    kernelsu-objs += manager/pkg_observer.o
+  endif
+
+  kernelsu-objs += infra/symbol_resolver.o
+  kernelsu-objs += hook/lsm_hook_magic.o
+  kernelsu-objs += hook/syscall_hook_manager.o
+  kernelsu-objs += hook/syscall_event_bridge.o
+  kernelsu-objs += hook/tp_marker.o
+  ifeq ($(CONFIG_ARM64),y)
+    kernelsu-objs += hook/arm64/patch_memory.o
+    kernelsu-objs += hook/arm64/syscall_hook.o
+  else ifeq ($(CONFIG_X86_64),y)
+    kernelsu-objs += hook/x86_64/patch_memory.o
+    kernelsu-objs += hook/x86_64/syscall_hook.o
+  else
+    ifeq ($(CONFIG_KSU), y)
+      $(info -- Unsupported arch)
+      $(info -- Only arm64-v8a and x86-64 support for tracepoint hook)
+      $(error Unsupported arch for tracepoint hook)
+    endif
+  endif
+else
+  # For old kernel, pkg observer maybe let system freeze
+  # https://github.com/ReSukiSU/ReSukiSU/issues/82#issuecomment-4015396974
+  #
+  # 4.2- we let user manual hook security.c to call ksu_handle_rename
+  # 4.2-6.7 we use lsm_hooks to call ksu_handle_rename
+  # 6.8+ we use pkg_observer to track_throne
+  ifeq ($(shell test \( $(VERSION) -gt 4 -o \( $(VERSION) -eq 4 -a $(PATCHLEVEL) -ge 2 \) \) && echo y),y)
+      ifeq ($(shell test \( $(VERSION) -lt 6 -o \( $(VERSION) -eq 6 -a $(PATCHLEVEL) -lt 8 \) \) && echo y),y)
+          kernelsu-objs += hook/lsm_hooks.o
+      else
+        ifndef CONFIG_KSU_DISABLE_MANAGER
+          kernelsu-objs += manager/pkg_observer.o
+        endif
+      endif
+  endif
 endif
 
-# SELinux drivers check
-ifeq ($(shell grep -q "current_sid(void)" $(srctree)/security/selinux/include/objsec.h; echo $$?),0)
-$(info -- KernelSU/compat: current_sid found)
-ccflags-y += -DKSU_COMPAT_HAS_CURRENT_SID
-endif
-ifeq ($(shell grep -q "struct selinux_state " $(srctree)/security/selinux/include/security.h; echo $$?),0)
-$(info -- KernelSU/compat: selinux_state found)
-ccflags-y += -DKSU_COMPAT_HAS_SELINUX_STATE
-endif
-
-# Handle optional backports
-ifeq ($(shell grep -q "strncpy_from_user_nofault" $(srctree)/include/linux/uaccess.h; echo $$?),0)
-$(info -- KernelSU/compat: strncpy found)
-ccflags-y += -DKSU_OPTIONAL_STRNCPY
-endif
-
-ifeq ($(shell grep -q "ssize_t kernel_read" $(srctree)/fs/read_write.c; echo $$?),0)
-$(info -- KernelSU/compat: kernel_read found)
-ccflags-y += -DKSU_OPTIONAL_KERNEL_READ
-endif
-
-ifeq ($(shell grep "ssize_t kernel_write" $(srctree)/fs/read_write.c | grep -q "const void" ; echo $$?),0)
-$(info -- KernelSU/compat: kernel_write found)
-ccflags-y += -DKSU_OPTIONAL_KERNEL_WRITE
-endif
-
-ifeq ($(shell grep -q "int\s\+path_mount" $(srctree)/fs/namespace.c; echo $$?),0)
-$(info -- KernelSU/compat: path_mount found)
-ccflags-y += -DKSU_HAS_PATH_MOUNT
-endif
-
-ifeq ($(shell grep -q "int\s\+path_umount" $(srctree)/fs/namespace.c; echo $$?),0)
-$(info -- KernelSU/compat: path_umount found)
-ccflags-y += -DKSU_HAS_PATH_UMOUNT
-endif
-
-ifeq ($(shell grep -q "inode_security_struct\s\+\*selinux_inode" $(srctree)/security/selinux/include/objsec.h; echo $$?),0)
-$(info -- KernelSU/compat: selinux_inode found)
-ccflags-y += -DKSU_OPTIONAL_SELINUX_INODE
-endif
-
-ifeq ($(shell grep -q "task_security_struct\s\+\*selinux_cred" $(srctree)/security/selinux/include/objsec.h; echo $$?),0)
-$(info -- KernelSU/compat: selinux_cred found)
-ccflags-y += -DKSU_OPTIONAL_SELINUX_CRED
-endif
-
-# seccomp_types.h were added on 6.7
-ifeq ($(shell grep -q "atomic_t\s\+filter_count" $(srctree)/include/linux/seccomp.h $(srctree)/include/linux/seccomp_types.h; echo $$?),0)
-$(info -- KernelSU/compat: seccomp_filter_count found)
-ccflags-y += -DKSU_OPTIONAL_SECCOMP_FILTER_CNT
-endif
-
-# some old kernel backport this, let's check if put_seccomp_filter still exist
-ifneq ($(shell grep -wq "put_seccomp_filter" $(srctree)/kernel/seccomp.c $(srctree)/include/linux/seccomp.h; echo $$?),0)
-$(info -- KernelSU/compat: put_seccomp_filter found)
-ccflags-y += -DKSU_OPTIONAL_SECCOMP_FILTER_RELEASE
-endif
-
-ifeq ($(shell grep -q "security_inode_init_security_anon" $(srctree)/include/linux/security.h; echo $$?),0)
-$(info -- KernelSU/compat: security_inode_init_security_anon found)
-ccflags-y += -DKSU_OPTIONAL_HAS_INIT_SEC_ANON
-endif
-
-ifeq ($(shell grep -q "anon_inode_getfd_secure" $(srctree)/fs/anon_inodes.c; echo $$?),0)
-$(info -- KernelSU/compat: anon_inode_getfd_secure found)
-ccflags-y += -DKSU_HAS_GETFD_SECURE
-endif
-
-ifeq ($(shell grep -A1 "^int vfs_getattr" $(srctree)/fs/stat.c | grep -q "query_flags"; echo $$?),0)
-$(info -- KernelSU/compat: vfs_getattr() found)
-ccflags-y += -DKSU_HAS_NEW_VFS_GETATTR
-endif
-
-ifeq ($(shell grep -q "static inline struct inode \*file_inode" $(srctree)/include/linux/fs.h; echo $$?),0)
-$(info -- KernelSU/compat: file_inode() found)
-ccflags-y += -DKSU_UL_HAS_FILE_INODE
-endif
-
-# Checks Samsung
-ifeq ($(shell grep -q "CONFIG_KDP_CRED" $(srctree)/kernel/cred.c; echo $$?),0)
-$(info -- KernelSU/compat/samsung: CONFIG_KDP_CRED found)a
-ccflags-y += -DSAMSUNG_UH_DRIVER_EXIST
-endif
-
-ifeq ($(shell grep -q "SEC_SELINUX_PORTING_COMMON" $(srctree)/security/selinux/avc.c; echo $$?),0)
-$(info -- KernelSU/compat/samsung: SEC_SELINUX_PORTING_COMMON found)
-ccflags-y += -DSAMSUNG_SELINUX_PORTING
-endif
-
-## For Huawei EMUI10+ check  
-# Scan Kernel Tree to find CONFIG_HKIP_SELINUX_PROT in ebitmap.h
-ifeq ($(shell grep -q "CONFIG_HKIP_SELINUX_PROT" $(srctree)/security/selinux/ss/ebitmap.h 2>/dev/null; echo $$?),0)
-  $(info -- $(REPO_NAME): CONFIG_HKIP_SELINUX_PROT found!)
-  ccflags-y += -DKSU_COMPAT_IS_HISI_HM2
-endif
-
-# Function proc_ops check
-ifeq ($(shell grep -q "struct proc_ops " $(srctree)/include/linux/proc_fs.h; echo $$?),0)
-$(info -- KernelSU/compat: proc_ops found)
-ccflags-y += -DKSU_COMPAT_HAS_PROC_OPS
-endif
-
-# Bitmap zalloc
-# https://github.com/torvalds/linux/commit/c42b65e363ce97a828f81b59033c3558f8fa7f70
-ifeq ($(shell grep -q "bitmap_zalloc" $(srctree)/include/linux/bitmap.h; echo $$?),0)
-$(info -- KernelSU/compat: bitmap_zalloc found)
-ccflags-y += -DKSU_COMPAT_HAS_BITMAP_ALLOC_HELPER
-endif
-
-# policy mutex
-# kernel 5.10+
-ifeq ($(shell grep -q "policy_mutex" $(srctree)/security/selinux/include/security.h; echo $$?),0)
-$(info -- $(REPO_NAME)/compat: policy_mutex found)
-ccflags-y += -DKSU_COMPAT_HAS_POLICY_MUTEX
-endif
-
-# policy rwlock
-# kernel 4.14-
-ifeq ($(shell grep -q "^DEFINE_RWLOCK(policy_rwlock);" $(srctree)/security/selinux/ss/services.c; echo $$?),0)
-$(info -- $(REPO_NAME)/compat: exported policy_rwlock found!)
-ccflags-y += -DKSU_COMPAT_HAS_EXPORTED_POLICY_RWLOCK
-endif
+include $(KSU_SRC)/tools/kernel_compat.mk
 
 # Custom Signs
 ifdef KSU_EXPECTED_SIZE
@@ -271,6 +203,7 @@ endif
 
 ## For susfs stuff ##
 ifeq ($(CONFIG_KSU_SUSFS), y)
+include $(KSU_SRC)/tools/inline_hook_check.mk
 ifeq ($(shell test -e $(srctree)/fs/susfs.c; echo $$?),0)
 $(eval SUSFS_VERSION=$(shell cat $(srctree)/include/linux/susfs.h | grep -E '^#define SUSFS_VERSION' | cut -d' ' -f3 | sed 's/"//g'))
 $(info )
@@ -284,122 +217,7 @@ endif
 
 # manual hook check
 ifeq ($(CONFIG_KSU_MANUAL_HOOK), y)
-
-  ifeq ($(CONFIG_KSU_MANUAL_HOOK_AUTO_SETUID_HOOK), y)
-    $(info -- KernelSU/manual_hook: You are using LSM hooks for setuid hooks.)
-    ifeq ($(VERSION),6)
-      ifeq ($(shell test $(PATCHLEVEL) -ge 8 && echo y),y)
-        $(info -- You can't use LSM hooks for kernel version higher than 6.8)
-        $(info -- You should turn off CONFIG_KSU_MANUAL_HOOK_AUTO_SETUID_HOOK and manually setresuid hook)
-        $(error You can't use LSM hooks when kernel version >= 6.8)
-      endif
-    endif
-  else
-    $(info -- KernelSU/manual_hook: You are using manually setresuid hook for setuid hooks.)
-
-    ifeq ($(shell grep -q "ksu_handle_setresuid" $(srctree)/kernel/sys.c; echo $$?),0)
-      $(info -- KernelSU/manual_hook: ksu_handle_setresuid found)
-    else
-      $(info -- You lost ksu_handle_setresuid hook in your kernel)
-      $(error You should integrate KernelSU in your kernel.)
-    endif
-  endif
-
-  ifeq ($(CONFIG_KSU_MANUAL_HOOK_AUTO_INITRC_HOOK), y)
-    $(info -- KernelSU/manual_hook: You are using LSM hooks for init rc hooks.)
-    ifeq ($(VERSION),6)
-      ifeq ($(shell test $(PATCHLEVEL) -ge 8 && echo y),y)
-        $(info -- You can't use LSM hooks for kernel version higher than 6.8)
-        $(info -- You should turn off CONFIG_KSU_MANUAL_HOOK_AUTO_INITRC_HOOK and manually sys_read hook)
-        $(error You can't use LSM hooks when kernel version >= 6.8)
-      endif
-    endif
-  else
-    $(info -- KernelSU/manual_hook: You are using manually sys_read hook for init rc hooks.)
-
-    ifeq ($(shell grep -q "ksu_handle_sys_read" $(srctree)/fs/read_write.c; echo $$?),0)
-      $(info -- KernelSU/manual_hook: ksu_handle_sys_read found)
-    else
-      $(info -- You lost ksu_handle_sys_read hook in your kernel)
-      $(error You should integrate KernelSU in your kernel.)
-    endif
-  endif
-
-  ifeq ($(shell grep -q "ksu_vfs_read_hook" $(srctree)/fs/read_write.c; echo $$?),0)
-    $(info -- ksu_vfs_read_hook is incompatible hook)
-    $(error You should integrate KernelSU in your kernel correctly.)
-  endif
-
-  ifeq ($(shell grep -q "is_ksu_transition" $(srctree)/security/selinux/hooks.c; echo $$?),0)
-    $(info -- is_ksu_transition is incompatible hook)
-    $(error You should integrate $(REPO_NAME) in your kernel correctly.)
-  endif
-
-  ifeq ($(CONFIG_KSU_MANUAL_HOOK_AUTO_INPUT_HOOK), y)
-    $(info -- KernelSU/manual_hook: You are using input_handler for input hooks.)
-  else
-    ifeq ($(shell grep -q "ksu_handle_input_handle_event" $(srctree)/drivers/input/input.c; echo $$?),0)
-      $(info -- KernelSU/manual_hook: ksu_handle_input_handle_event found)
-    else
-      $(info -- You lost ksu_handle_input_handle_event hook in your kernel)
-      $(error You should integrate KernelSU in your kernel.)
-    endif
-  endif
-
-  ifeq ($(shell grep -q "ksu_handle_execveat" $(srctree)/fs/exec.c; echo $$?),0)
-    $(info -- KernelSU/manual_hook: ksu_handle_execveat found)
-  else
-    $(info -- You lost ksu_handle_execveat hook in your kernel)
-    $(error You should integrate KernelSU in your kernel.)
-  endif
-
-  ifeq ($(shell grep -q "ksu_handle_faccessat" $(srctree)/fs/open.c; echo $$?),0)
-    $(info -- KernelSU/manual_hook: ksu_handle_faccessat found)
-  else
-    $(info -- You lost ksu_handle_faccessat hook in your kernel)
-    $(error You should integrate KernelSU in your kernel.)
-  endif
-
-  ifeq ($(shell grep -q "ksu_handle_stat" $(srctree)/fs/stat.c; echo $$?),0)
-    $(info -- KernelSU/manual_hook: ksu_handle_stat found)
-  else
-    $(info -- You lost ksu_handle_stat hook in your kernel)
-    $(error You should integrate KernelSU in your kernel.)
-  endif
-
-  ifeq ($(shell grep -q "ksu_handle_newfstat_ret" $(srctree)/fs/stat.c; echo $$?),0)
-    $(info -- KernelSU/manual_hook: ksu_handle_newfstat_ret found)
-  else
-    $(info -- You lost ksu_handle_newfstat_ret hook in your kernel)
-    $(error You should integrate KernelSU in your kernel.)
-  endif 
-
-  ifeq ($(shell grep -q "ksu_handle_fstat64_ret" $(srctree)/fs/stat.c; echo $$?),0)
-    $(info -- KernelSU/manual_hook: ksu_handle_fstat64_ret found)
-  else
-    $(info -- You lost ksu_handle_fstat64_ret hook in your kernel)
-    $(error You should integrate KernelSU in your kernel.)
-  endif
-
-  ifeq ($(shell grep -q "ksu_handle_sys_reboot" $(srctree)/kernel/reboot.c; echo $$?),0)
-    $(info -- KernelSU/manual_hook: ksu_handle_sys_reboot found)
-  else
-    $(info -- You lost ksu_handle_sys_reboot hook in your kernel)
-    $(error You should integrate KernelSU in your kernel.)
-  endif
-
-endif
-
-ifeq ($(CONFIG_KSU),y)
-  ifneq ($(KERNEL_TYPE), GKI 2.0)
-      ifeq ($(KSU_TP_HOOK), y)
-          $(info -- $(REPO_NAME) TP Hooks are only supported on GKI 2.0 kernels.)
-          $(info -- Current Kernel Type: $(KERNEL_TYPE))
-          $(info -- If you really want to continue, go to Kbuild and comment out this warning.)
-          $(info -- Usually, this error occurs because you forgot to enable some kernel configurations.)
-          $(error TP hooks are incompatible with Non-GKI/GKI 1.0 kernels in this configuration.)
-      endif
-  endif
+include $(KSU_SRC)/tools/manual_hook_check.mk
 endif
 
 # Keep a new line here!! Because someone may append config
