@@ -18,7 +18,6 @@
 #endif // #ifdef CONFIG_KSU_SUSFS
 
 #include "compat/kernel_compat.h"
-#include "feature/sulog.h"
 #include "uapi/supercall.h"
 #include "supercall/internal.h"
 #include "arch.h"
@@ -76,8 +75,6 @@ int ksu_install_fd(void)
 
     // Install fd
     fd_install(fd, filp);
-
-    ksu_sulog_report_permission_check(ksu_get_uid_t(current_uid()), current->comm, fd >= 0);
 
     pr_info("ksu fd installed: %d for pid %d\n", fd, current->pid);
 
@@ -244,7 +241,7 @@ static struct kprobe reboot_kp = {
 };
 #endif
 
-void ksu_supercalls_init(void)
+void __init ksu_supercalls_init(void)
 {
     int rc;
 
@@ -260,7 +257,7 @@ void ksu_supercalls_init(void)
 #endif
 }
 
-void ksu_supercalls_exit(void)
+void __exit ksu_supercalls_exit(void)
 {
 #ifdef KSU_TP_HOOK
     unregister_kprobe(&reboot_kp);
