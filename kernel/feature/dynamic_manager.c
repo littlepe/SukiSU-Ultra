@@ -72,7 +72,7 @@ int ksu_handle_dynamic_manager(struct ksu_dynamic_manager_cmd *cmd)
         }
 
         if (dynamic_manager.is_set) {
-            ksu_unregister_manager_by_signature_index(DYNAMIC_MANAGER_SIGNATURE_INDEX_MAGIC);
+            ksu_unregister_manager_by_signature_index(KSU_SIGNATURE_INDEX_DYNAMIC_MANAGER);
         }
 
         dynamic_manager.size = cmd->size;
@@ -83,8 +83,8 @@ int ksu_handle_dynamic_manager(struct ksu_dynamic_manager_cmd *cmd)
 
         dynamic_manager.is_set = 1;
 
-        track_throne(false, true, false);
-        pr_info("dynamic manager updated: size=0x%x, hash=%.16s... (multi-manager enabled)\n", cmd->size, cmd->hash);
+        track_throne(TRACK_THRONE_FORCE_SEARCH_MGR);
+        pr_info("dynamic manager updated: size=0x%x, hash=%.16s\n", cmd->size, cmd->hash);
         break;
 
     case DYNAMIC_MANAGER_OP_GET:
@@ -100,7 +100,7 @@ int ksu_handle_dynamic_manager(struct ksu_dynamic_manager_cmd *cmd)
     case DYNAMIC_MANAGER_OP_WIPE:
         dynamic_manager.is_set = 0;
         ret = 0;
-        ksu_unregister_manager_by_signature_index(DYNAMIC_MANAGER_SIGNATURE_INDEX_MAGIC);
+        ksu_unregister_manager_by_signature_index(KSU_SIGNATURE_INDEX_DYNAMIC_MANAGER);
         pr_info("dynamic manager kernel settings reseted");
         break;
 
