@@ -104,6 +104,10 @@ FILLDIR_RETURN_TYPE my_actor(MY_ACTOR_CTX_ARG, const char *name, int namelen, lo
     // we put the apk path we collected here
     char *candidate_path = (char *)my_ctx->private_data;
 
+#ifdef CONFIG_KSU_DEBUG
+    pr_info("Testing path: %s/%.*s", my_ctx->parent_dir, namelen, name);
+#endif
+
     if (!my_ctx) {
         pr_err("Invalid context\n");
         return FILLDIR_ACTOR_STOP;
@@ -123,7 +127,7 @@ FILLDIR_RETURN_TYPE my_actor(MY_ACTOR_CTX_ARG, const char *name, int namelen, lo
     }
 
     if (d_type == DT_DIR && my_ctx->depth > 0) {
-        struct data_path *data = kzalloc(sizeof(struct data_path), GFP_ATOMIC);
+        struct data_path *data = kzalloc(sizeof(struct data_path), GFP_KERNEL);
 
         if (!data) {
             pr_err("Failed to allocate memory for %s\n", dirpath);
@@ -137,7 +141,7 @@ FILLDIR_RETURN_TYPE my_actor(MY_ACTOR_CTX_ARG, const char *name, int namelen, lo
     }
 
     // now put this on candidate_path
-    if (d_type == DT_REG && !strncmp(name, "base.apk", 8)) {
+    if (d_type == DT_REG && namelen == 8 && !memcmp(name, "base.apk", 8)) {
         snprintf(candidate_path, DATA_PATH_LEN, "%s/%.*s", my_ctx->parent_dir, namelen, name);
     }
 
@@ -186,7 +190,7 @@ void search_manager(const char *path, int depth, struct list_head *uid_data)
             // make sure to clean buffer on every iteration
             memset(candidate_path, 0, DATA_PATH_LEN);
 
-            file = ksu_filp_open_compat(pos->dirpath, O_RDONLY | O_NOFOLLOW, 0);
+            file = filp_open(pos->dirpath, O_RDONLY | O_NOFOLLOW, 0);
             if (IS_ERR(file)) {
                 pr_err("Failed to open directory: %s, err: %ld\n", pos->dirpath, PTR_ERR(file));
                 goto skip_iterate;
@@ -251,8 +255,16 @@ static bool is_uid_exist(uid_t uid, char *package, void *data)
     return exist;
 }
 
-void track_throne(bool prune_only, bool force_search_manager, bool from_renameat)
+struct track_throne_struct {
+    unsigned int flags;
+};
+
+void do_track_throne(void *data)
 {
+    struct track_throne_struct *tts = (struct track_throne_struct *)data;
+    unsigned int flags = tts->flags;
+    kfree(tts);
+
     struct list_head uid_list;
     struct uid_data *np, *n;
     struct file *fp;
@@ -260,7 +272,7 @@ void track_throne(bool prune_only, bool force_search_manager, bool from_renameat
     loff_t pos = 0;
     loff_t line_start = 0;
     char buf[KSU_MAX_PACKAGE_NAME];
-    bool need_search = force_search_manager;
+    bool need_search = flags & TRACK_THRONE_FORCE_SEARCH_MGR;
 
     // init uid list head, bitmap
     unsigned long *curr_app_id_map = NULL;
@@ -286,14 +298,14 @@ void track_throne(bool prune_only, bool force_search_manager, bool from_renameat
     }
     INIT_LIST_HEAD(&uid_list);
 
-    if (from_renameat) {
-        fp = ksu_filp_open_compat(SYSTEM_PACKAGES_LIST_TMP_PATH, O_RDONLY, 0);
+    if (flags & TRACK_THRONE_FROM_RENAMEAT) {
+        fp = filp_open(SYSTEM_PACKAGES_LIST_TMP_PATH, O_RDONLY, 0);
         if (IS_ERR(fp)) {
             pr_err("%s: open " SYSTEM_PACKAGES_LIST_TMP_PATH " failed: %ld\n", __func__, PTR_ERR(fp));
             goto out;
         }
     } else {
-        fp = ksu_filp_open_compat(SYSTEM_PACKAGES_LIST_PATH, O_RDONLY, 0);
+        fp = filp_open(SYSTEM_PACKAGES_LIST_PATH, O_RDONLY, 0);
         if (IS_ERR(fp)) {
             pr_err("%s: open " SYSTEM_PACKAGES_LIST_PATH " failed: %ld\n", __func__, PTR_ERR(fp));
             goto out;
@@ -314,8 +326,13 @@ void track_throne(bool prune_only, bool force_search_manager, bool from_renameat
         if (chr != '\n')
             continue;
 
-        count = ksu_kernel_read_compat(fp, buf, sizeof(buf), &line_start);
-        data = kzalloc(sizeof(struct uid_data), GFP_ATOMIC);
+        count = ksu_kernel_read_compat(fp, buf, sizeof(buf) - 1, &line_start);
+        if (count <= 0) {
+            break;
+        }
+        buf[count] = '\0';
+
+        data = kzalloc(sizeof(struct uid_data), GFP_KERNEL);
         if (!data) {
             filp_close(fp, 0);
             goto out;
@@ -349,7 +366,7 @@ void track_throne(bool prune_only, bool force_search_manager, bool from_renameat
 
     filp_close(fp, 0);
 
-    if (prune_only)
+    if (flags & TRACK_THRONE_PRUNE_ONLY)
         goto prune;
 
     // check uninstalled is manager, and
@@ -403,9 +420,28 @@ out:
         bitmap_free(diff_map);
 }
 
+void track_throne(unsigned int flags)
+{
+    struct track_throne_struct *tts = kzalloc(sizeof(struct track_throne_struct), GFP_KERNEL);
+    tts->flags = flags;
+
+    if (flags & TRACK_THRONE_FROM_RENAMEAT) {
+        // after renameat hook, packages.list.tmp -> packages.list
+        // don't async for it, or it will always have an race
+        // for example,
+        // we put track_throne task to init
+        // and user install an new app before task_work executed
+        // ^ race here
+
+        do_track_throne(tts);
+    } else {
+        ksu_run_in_init_if_possible(do_track_throne, tts);
+    }
+}
+
 // for 6.8- kernel, we can use LSM hook in manual hook
 // 6.8+, we use pkg_observer
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 8, 0) && !defined(KSU_TP_HOOK)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 8, 0) && !defined(CONFIG_KSU_TRACEPOINT_HOOK)
 void ksu_handle_rename(struct dentry *old_dentry, struct dentry *new_dentry)
 {
     // skip kernel threads
@@ -440,7 +476,7 @@ void ksu_handle_rename(struct dentry *old_dentry, struct dentry *new_dentry)
 
     pr_info("renameat: %s -> %s, new path: %s\n", old_dentry->d_iname, new_dentry->d_iname, buf);
 
-    track_throne(false, false, true);
+    track_throne(TRACK_THRONE_FROM_RENAMEAT);
 }
 #endif
 

@@ -3,9 +3,6 @@
 
 #include <linux/fs.h>
 #include <linux/version.h>
-#ifdef KSU_TP_HOOK
-#include <linux/task_work.h>
-#endif
 #include <linux/fdtable.h>
 #include "ss/policydb.h"
 #include "linux/key.h"
@@ -47,7 +44,6 @@
 
 extern long ksu_strncpy_from_user_nofault(char *dst, const void __user *unsafe_addr, long count);
 
-extern struct file *ksu_filp_open_compat(const char *filename, int flags, umode_t mode);
 extern ssize_t ksu_kernel_read_compat(struct file *p, void *buf, size_t count, loff_t *pos);
 extern ssize_t ksu_kernel_write_compat(struct file *p, const void *buf, size_t count, loff_t *pos);
 
@@ -285,6 +281,39 @@ static inline u64 ksu_ktime_get_ns(void)
 
 #ifndef in_compat_syscall
 #define in_compat_syscall() is_compat_task()
+#endif
+
+extern void ksu_run_in_init_if_possible(void (*callback)(void *), void *data);
+
+#if defined(CONFIG_KEYS) && (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0) || defined(KSU_COMPAT_IS_HISI_LEGACY) ||    \
+                             defined(KSU_COMPAT_IS_HISI_LEGACY_HM2))
+#define KSU_COMPAT_REQUIRE_SESSION_KEYRING
+extern void setup_ksu_cred_session_keyring(void);
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0) || defined(KSU_HAS_MODERN_STATIC_KEY_INTERFACE)
+#define KSU_COMPAT_USE_STATIC_KEY
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)
+__weak long copy_from_kernel_nofault(void *dst, const void *src, size_t size)
+{
+    // https://elixir.bootlin.com/linux/v5.2.21/source/mm/maccess.c#L27
+    long ret;
+    mm_segment_t old_fs = get_fs();
+
+    set_fs(KERNEL_DS);
+    pagefault_disable();
+    ret = __copy_from_user_inatomic(dst, (__force const void __user *)src, size);
+    pagefault_enable();
+    set_fs(old_fs);
+
+    return ret ? -EFAULT : 0;
+}
+#endif
+
+#ifndef __nocfi
+#define __nocfi
 #endif
 
 #endif

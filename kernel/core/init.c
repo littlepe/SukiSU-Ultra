@@ -6,6 +6,7 @@
 #include <generated/utsrelease.h>
 #include <generated/compile.h>
 #include <linux/version.h> /* LINUX_VERSION_CODE, KERNEL_VERSION macros */
+#include <linux/moduleparam.h>
 
 #ifdef CONFIG_KSU_SUSFS
 #include <linux/susfs.h>
@@ -20,18 +21,26 @@
 #include "manager/throne_tracker.h"
 #include "runtime/ksud.h"
 #include "runtime/ksud_boot.h"
-#include "feature/sulog.h"
 #include "supercall/supercall.h"
 #include "ksu.h"
 #include "infra/file_wrapper.h"
 #include "selinux/selinux.h"
+#include "hook/setuid_hook.h"
+#include "compat/kernel_compat.h"
+
+#include "feature/sulog.h"
 #include "feature/adb_root.h"
 #include "feature/dynamic_manager.h"
 #include "feature/sucompat.h"
-#include "hook/setuid_hook.h"
+#include "feature/selinux_hide.h"
+#include "infra/symbol_resolver.h"
+
+#ifdef CONFIG_ARM64
+#include "compat/apatch_conflict.h"
+#endif
 
 // if we are using the upstream hook, check x86-64 compatible
-#if defined(KSU_TP_HOOK) && defined(__x86_64__)
+#if defined(CONFIG_KSU_TRACEPOINT_HOOK) && defined(__x86_64__)
 #include <asm/cpufeature.h>
 #include <linux/version.h>
 #ifndef X86_FEATURE_INDIRECT_SAFE
@@ -78,24 +87,35 @@ struct cred *ksu_cred;
 bool ksu_late_loaded;
 
 // dispatcher of ksu hooks
-#ifdef KSU_TP_HOOK
+#ifdef CONFIG_KSU_TRACEPOINT_HOOK
 #include "hook/syscall_hook_manager.h"
 #include "hook/syscall_hook.h"
+#else
+#include "hook/lsm_hooks.h"
 #endif
 
-static inline void ksu_hook_init(void)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+#include "hook/lsm_hook_magic.h"
+#endif
+
+static inline void __init ksu_hook_init(void)
 {
-#if defined(KSU_TP_HOOK)
+    ksu_init_symbol_resolver();
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+    ksu_lsm_hook_magic_init();
+#endif
+
+#if defined(CONFIG_KSU_TRACEPOINT_HOOK)
     ksu_syscall_hook_init();
     ksu_syscall_hook_manager_init();
 #elif defined(CONFIG_KSU_MANUAL_HOOK)
 // only lsm hook need call init
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 8, 0) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)
-    ksu_lsm_hook_init();
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 8, 0)
+    ksu_lsm_hook_built_in_init();
 #endif
 #elif defined(CONFIG_KSU_SUSFS)
 #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 8, 0)
-    ksu_lsm_hook_init();
+    ksu_lsm_hook_built_in_init();
 #endif
     susfs_init();
 #else
@@ -103,9 +123,13 @@ static inline void ksu_hook_init(void)
 #endif
 }
 
-static inline void ksu_hook_exit(void)
+static inline void __exit ksu_hook_exit(void)
 {
-#if defined(KSU_TP_HOOK)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+    ksu_lsm_hook_magic_exit();
+#endif
+
+#if defined(CONFIG_KSU_TRACEPOINT_HOOK)
     ksu_syscall_hook_manager_exit();
 #else
     ksu_sucompat_exit();
@@ -113,9 +137,34 @@ static inline void ksu_hook_exit(void)
 #endif
 }
 
+void setup_ksu_cred(void)
+{
+    setup_ksu_cred_selinux();
+#ifdef KSU_COMPAT_REQUIRE_SESSION_KEYRING
+    setup_ksu_cred_session_keyring();
+#endif
+}
+
+#ifdef CONFIG_KSU_DEBUG
+bool allow_shell = true;
+#else
+bool allow_shell = false;
+#endif
+
 int __init kernelsu_init(void)
 {
     pr_info("Initialized on: %s (%s) with driver version: %u\n", UTS_RELEASE, UTS_MACHINE, KSU_VERSION);
+#if defined(KSU_COMPAT_NON_EXPORTED_POLICY_RWLOCK) || defined(KSU_COMPAT_NON_EXPORTED_SEL_MUTEX)
+    pr_alert("*************************************************************");
+    pr_alert("**     NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE    **");
+    pr_alert("**                                                         **");
+    pr_alert("**          Enable Unsafe memory access for SELinux        **");
+    pr_alert("**                You maybe face Kernel Panic              **");
+    pr_alert("**                                                         **");
+    pr_alert("**     NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE    **");
+    pr_alert("*************************************************************");
+#endif
+
 #ifdef MODULE
     ksu_late_loaded = (current->pid != 1);
 #else
@@ -123,7 +172,7 @@ int __init kernelsu_init(void)
 #endif
 
     // If we are in tracepoint hook, remember to check x86-64 compatible
-#if defined(KSU_TP_HOOK) && defined(__x86_64__)
+#if defined(CONFIG_KSU_TRACEPOINT_HOOK) && defined(__x86_64__)
     // If the kernel has the hardening patch, X86_FEATURE_INDIRECT_SAFE must be set
     if (!boot_cpu_has(X86_FEATURE_INDIRECT_SAFE)) {
         pr_alert("*************************************************************");
@@ -149,6 +198,14 @@ int __init kernelsu_init(void)
     pr_alert("*************************************************************");
 #endif
 
+    if (allow_shell) {
+        pr_alert("shell is allowed at init!");
+    }
+
+#ifdef CONFIG_ARM64
+    ksu_start_apatch_conflict_check();
+#endif
+
     ksu_cred = prepare_creds();
     if (!ksu_cred) {
         pr_err("prepare cred failed!\n");
@@ -157,6 +214,7 @@ int __init kernelsu_init(void)
     ksu_feature_init();
     ksu_sulog_init();
     ksu_adb_root_init();
+    ksu_selinux_hide_init();
 
     ksu_supercalls_init();
 
@@ -187,7 +245,7 @@ int __init kernelsu_init(void)
         ksu_file_wrapper_init();
 
         ksu_boot_completed = true;
-        track_throne(false, true, false);
+        track_throne(TRACK_THRONE_FORCE_SEARCH_MGR);
 
         if (!getenforce()) {
             pr_info("Permissive SELinux, enforcing\n");
@@ -232,6 +290,7 @@ void __exit kernelsu_exit(void)
 
     ksu_allowlist_exit();
 
+    ksu_selinux_hide_exit();
     ksu_adb_root_exit();
     ksu_sulog_exit();
     ksu_feature_exit();
@@ -247,6 +306,7 @@ module_init(kernelsu_init_early);
 module_init(kernelsu_init);
 #endif
 module_exit(kernelsu_exit);
+module_param(allow_shell, bool, 0);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("weishu");
