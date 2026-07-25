@@ -8,7 +8,16 @@
 
 bool only_manager(void)
 {
-    return is_manager();
+    bool result = is_manager();
+    u32 uid = ksu_get_uid_t(current_uid());
+    
+    if (!result) {
+        pr_warn("only_manager: DENIED - uid=%u is_manager=%d\n", uid, result);
+    } else {
+        pr_info("only_manager: ALLOWED - uid=%u\n", uid);
+    }
+    
+    return result;
 }
 
 bool only_root(void)

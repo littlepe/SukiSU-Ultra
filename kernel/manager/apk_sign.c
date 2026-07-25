@@ -320,9 +320,7 @@ clean:
     filp_close(fp, 0);
 
     if (v3_signing_exist || v3_1_signing_exist) {
-#ifdef CONFIG_KSU_DEBUG
-        pr_err("Unexpected v3 signature scheme found!\n");
-#endif
+        pr_err("check_v2_signature: %s rejected - v3/v3.1 signature found\n", path);
         return false;
     }
 
@@ -330,9 +328,11 @@ clean:
         if (signature_index) {
             *signature_index = matched_index;
         }
-
+        pr_info("check_v2_signature: %s VALID - signature_index=%u\n", path, matched_index);
         return true;
     }
+    
+    pr_warn("check_v2_signature: %s INVALID - no valid v2 signature\n", path);
     return false;
 }
 

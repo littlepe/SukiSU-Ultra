@@ -27,6 +27,7 @@
 #endif
 #include "feature/dynamic_manager.h"
 #include "policy/app_profile.h"
+#include "manager/manager_version.h"
 
 #ifdef CONFIG_KSU_TOOLKIT_SUPPORT
 #include <linux/utsname.h> // utsname() and uts_sem
@@ -62,7 +63,18 @@ static uint32_t ksuflags_override = 0;
 
 static int do_get_info(void __user *arg)
 {
-    struct ksu_get_info_cmd cmd = { .version = KERNEL_SU_VERSION, .flags = 0 };
+	u32 version = KERNEL_SU_VERSION;
+	
+	// Get caller's uid and check if it's a registered manager
+	u16 appid = ksu_get_uid_t(current_uid()) % PER_USER_RANGE;
+	int signature_index = ksu_get_manager_signature_index_by_appid(appid);
+	
+	// If caller is a registered manager, use manager-specific version
+	if (signature_index >= 0 && signature_index < 256) {
+		version = ksu_get_version_for_manager((u8)signature_index);
+	}
+	
+	struct ksu_get_info_cmd cmd = { .version = version, .flags = 0 };
 
 #ifdef MODULE
     cmd.flags |= KSU_GET_INFO_FLAG_LKM;
@@ -97,7 +109,18 @@ static int do_get_info(void __user *arg)
 
 static int do_get_info_legacy(void __user *arg)
 {
-    struct ksu_get_info_legacy_cmd cmd = { .version = KERNEL_SU_VERSION, .flags = 0 };
+	u32 version = KERNEL_SU_VERSION;
+	
+	// Get caller's uid and check if it's a registered manager
+	u16 appid = ksu_get_uid_t(current_uid()) % PER_USER_RANGE;
+	int signature_index = ksu_get_manager_signature_index_by_appid(appid);
+	
+	// If caller is a registered manager, use manager-specific version
+	if (signature_index >= 0 && signature_index < 256) {
+		version = ksu_get_version_for_manager((u8)signature_index);
+	}
+	
+	struct ksu_get_info_legacy_cmd cmd = { .version = version, .flags = 0 };
 
 #ifdef MODULE
     cmd.flags |= KSU_GET_INFO_FLAG_LKM;
@@ -408,13 +431,31 @@ static int do_set_app_profile(void __user *arg)
 
     struct ksu_set_app_profile_cmd cmd;
     int ret;
+    u32 caller_uid = ksu_get_uid_t(current_uid());
+
+    pr_info("set_app_profile: called by uid=%u\n", caller_uid);
 
     if (copy_from_user(&cmd, arg, sizeof(cmd))) {
         pr_err("set_app_profile: copy_from_user failed\n");
         return -EFAULT;
     }
 
+    pr_info("set_app_profile: target_uid=%u key=%s allow_su=%d version=%d\n", 
+            cmd.profile.curr_uid, cmd.profile.key, cmd.profile.allow_su, cmd.profile.version);
+
+    // Migrate older profile versions (v3 -> v4)
+    if (cmd.profile.version == 3) {
+        pr_info("set_app_profile: migrating v3 profile to v4 for key=%s\n", cmd.profile.key);
+        if (cmd.profile.allow_su) {
+            cmd.profile.rp_config.profile.flags = FLAG_KSU_NO_NEW_PRIVS;
+        }
+        cmd.profile.version = KSU_APP_PROFILE_VER;
+    }
+
     ret = ksu_set_app_profile(&cmd.profile);
+    
+    pr_info("set_app_profile: result=%d\n", ret);
+    
     if (!ret) {
         ksu_persistent_allow_list();
 #ifdef CONFIG_KSU_TRACEPOINT_HOOK

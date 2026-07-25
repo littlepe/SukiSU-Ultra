@@ -14,6 +14,7 @@ kernelsu-objs += feature/dynamic_manager.o
 kernelsu-objs += manager/apk_sign.o
 kernelsu-objs += manager/throne_tracker.o
 kernelsu-objs += manager/manager.o
+kernelsu-objs += manager/manager_version.o
 endif
 
 kernelsu-objs += compat/kernel_compat.o
@@ -71,7 +72,10 @@ endif
 
 $(shell cd $(KSU_SRC); [ -f ../.git/shallow ] && $(GIT_BIN) fetch --unshallow)
 KSU_LOCAL_VERSION := $(shell cd $(KSU_SRC); $(GIT_BIN) rev-list --count HEAD)
-KSU_VERSION := $(shell expr 40000 + $(KSU_LOCAL_VERSION))
+
+include $(KSU_SRC)/tools/manager_versions.mk
+
+CFLAGS_manager_version.o := -DKSU_LOCAL_COMMITS=$(KSU_LOCAL_VERSION)
 
 KSU_TAG_NAME    := v4.1.3
 

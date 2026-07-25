@@ -54,12 +54,16 @@ void ksu_register_manager(u32 uid, u8 signature_index)
     struct ksu_manager_node *node;
     u16 appid;
 
-    if (ksu_is_manager_uid(uid))
+    if (ksu_is_manager_uid(uid)) {
+        pr_info("register_manager: uid=%u already registered\n", uid);
         return;
+    }
 
     node = kzalloc(sizeof(*node), GFP_ATOMIC);
-    if (unlikely(!node))
+    if (unlikely(!node)) {
+        pr_err("register_manager: kzalloc failed for uid=%u\n", uid);
         return;
+    }
 
     appid = uid % PER_USER_RANGE;
 
@@ -71,6 +75,7 @@ void ksu_register_manager(u32 uid, u8 signature_index)
     if (ksu_is_manager_uid(uid)) {
         spin_unlock(&ksu_manager_list_write_lock);
         kfree(node);
+        pr_info("register_manager: uid=%u already registered (race)\n", uid);
         return;
     }
 
@@ -80,6 +85,9 @@ void ksu_register_manager(u32 uid, u8 signature_index)
 
     if (ksu_last_manager_appid == KSU_INVALID_APPID)
         ksu_last_manager_appid = appid;
+    
+    pr_info("register_manager: SUCCESS - uid=%u appid=%u signature_index=%u\n", 
+            uid, appid, signature_index);
     return;
 }
 

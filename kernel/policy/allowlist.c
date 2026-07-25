@@ -135,36 +135,47 @@ static inline bool forbid_system_uid(uid_t uid)
 static bool profile_valid(struct app_profile *profile)
 {
     if (!profile) {
+        pr_err("profile_valid: profile is NULL\n");
         return false;
     }
 
     if (strnlen(profile->key, sizeof(profile->key)) >= sizeof(profile->key)) {
-        pr_err("invalid app_profile key\n");
+        pr_err("profile_valid: invalid key (not null-terminated)\n");
         return false;
     }
 
     if (profile->version != KSU_APP_PROFILE_VER) {
-        pr_info("Unsupported profile version: %d\n", profile->version);
+        pr_err("profile_valid: unsupported version %d (expected %d) for key=%s\n", 
+               profile->version, KSU_APP_PROFILE_VER, profile->key);
         return false;
     }
+
+    pr_info("profile_valid: key=%s allow_su=%d version=%d\n", 
+            profile->key, profile->allow_su, profile->version);
 
     if (profile->allow_su) {
 #ifndef CONFIG_KSU_DISABLE_POLICY
         if (profile->rp_config.profile.groups_count > KSU_MAX_GROUPS) {
-            pr_err("invalid groups_count in app_profile: %s\n", profile->key);
+            pr_err("profile_valid: invalid groups_count=%d (max %d) for key=%s\n", 
+                   profile->rp_config.profile.groups_count, KSU_MAX_GROUPS, profile->key);
             return false;
         }
 
         static const size_t domain_len = sizeof(profile->rp_config.profile.selinux_domain);
         size_t len = strnlen(profile->rp_config.profile.selinux_domain, domain_len);
 
+        pr_info("profile_valid: selinux_domain len=%zu domain='%s' for key=%s\n", 
+                len, profile->rp_config.profile.selinux_domain, profile->key);
+
         if (len == 0 || len >= domain_len) {
-            pr_err("invalid selinux_domain in app_profile: %s\n", profile->key);
+            pr_err("profile_valid: invalid selinux_domain len=%zu (must be 0 < len < %zu) for key=%s\n", 
+                   len, domain_len, profile->key);
             return false;
         }
 #endif
     }
 
+    pr_info("profile_valid: VALID for key=%s\n", profile->key);
     return true;
 }
 
