@@ -25,18 +25,19 @@ struct manager_version_entry {
 };
 
 static const struct manager_version_entry manager_version_table[] = {
-	{ 0,   40000, -3095 },
-	{ 1,   30000,   438 },
-	{ 2,   30000, -1331 },
-	{ 3,   30000, -1344 },
-	{ 4,   30100, -1264 },
-	{ 5,   30000, -1296 },
-	{ 6,   40000,     0 },
-	{ 7,   30000,  -669 },
-	{ 8,   30000,  -776 },
-	{ 253, 40000,     0 },
-	{ 254, 40000,     0 },
-	{ 255, 40000,     0 },
+	{ 0,   40000, -3096 },  // SukiSU-Ultra
+	{ 1,   30000,   438 },  // ReSukiSU
+	{ 2,   30000, -1331 },  // weishu/KSU (Official)
+	{ 3,   30000, -1344 },  // MKSU
+	{ 4,   30000, -1300 },  // xxKernelSU
+	{ 5,   30100, -1264 },  // RKSU
+	{ 6,   30000, -1296 },  // KowSU
+	{ 7,   40000,     0 },  // MamboSU
+	{ 8,   30000,  -669 },  // KernelSU-Next
+	{ 9,   30000,  -776 },  // WildSU
+	{ 253, 40000,     0 },  // Dynamic Manager 1
+	{ 254, 40000,     0 },  // Dynamic Manager 2
+	{ 255, 40000,     0 },  // Dynamic Manager 3
 };
 
 // Get version number for specific manager by signature_index

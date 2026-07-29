@@ -11,6 +11,11 @@
 #define EXPECTED_HASH_5EC1CFF                                                  \
     "7e0c6d7278a3bb8e364e0fcba95afaf3666cf5ff3c245a3b63c8833bd0445cc4"
 
+// backslashxx/KernelSU - xxKernelSU
+#define EXPECTED_SIZE_BACKSLASHXX 0x363
+#define EXPECTED_HASH_BACKSLASHXX                                              \
+    "4359c171f32543394cbc23ef908c4bb94cad7c8087002ba164c8230948c21549"
+
 // rsuntk/KernelSU - RKSU
 #define EXPECTED_SIZE_RSUNTK 0x396
 #define EXPECTED_HASH_RSUNTK                                                   \
