@@ -16,7 +16,7 @@
 #include "asm/insn.h" // IWYU pragma: keep
 #endif
 #elif defined(__x86_64__)
-#include "asm/text-patching.h" // IWYU pragma: keep
+#include <asm/ptrace.h>
 #else
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0)
 #include "asm/insn.h" // IWYU pragma: keep
@@ -28,5 +28,6 @@
 
 unsigned long phys_from_virt(unsigned long addr, int *err);
 int ksu_patch_text(void *dst, void *src, size_t len, int flags);
+void *scan_call_to(void *start, size_t size, void *target);
 
 #endif
