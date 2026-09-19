@@ -25,14 +25,14 @@ struct manager_version_entry {
 };
 
 static const struct manager_version_entry manager_version_table[] = {
-	{ 0,   40000, -3094 },  // SukiSU-Ultra
-	{ 1,   30000,  1148 },  // ReSukiSU
-	{ 2,   30000, -1365 },  // weishu/KSU (Official)
-	{ 3,   30000, -1342 },  // MKSU
-	{ 4,   30000, -1298 },  // xxKernelSU
-	{ 5,   30100, -1262 },  // RKSU
-	{ 6,   30000, -1294 },  // KowSU
-	{ 7,   40000,     0 },  // MamboSU
+	{ 0,   40000, -2096 },  // SukiSU-Ultra
+	{ 1,   30000,  1262 },  // ReSukiSU
+	{ 2,   30000, -1295 },  // weishu/KSU (Official)
+	{ 3,   30000, -1292 },  // MKSU
+	{ 4,   30000, -1256 },  // xxKernelSU
+	{ 5,   30100, -1506 },  // RKSU
+	{ 6,   30000,  1223 },  // KowSU
+	{ 7,   40000, -11295},  // MamboSU
 	{ 8,   30000,  -667 },  // KernelSU-Next
 	{ 9,   30000,  -774 },  // WildSU
 	{ 253, 40000,     0 },  // Dynamic Manager 1
