@@ -64,14 +64,16 @@ static uint32_t ksuflags_override = 0;
 static int do_get_info(void __user *arg)
 {
 	u32 version = KERNEL_SU_VERSION;
+	u32 uapi_version = KERNEL_SU_UAPI_VERSION;
 	
 	// Get caller's uid and check if it's a registered manager
 	u16 appid = ksu_get_uid_t(current_uid()) % PER_USER_RANGE;
 	int signature_index = ksu_get_manager_signature_index_by_appid(appid);
 	
-	// If caller is a registered manager, use manager-specific version
+	// If caller is a registered manager, use manager-specific version/UAPI version
 	if (signature_index >= 0 && signature_index < 256) {
 		version = ksu_get_version_for_manager((u8)signature_index);
+		uapi_version = ksu_get_uapi_version_for_manager((u8)signature_index);
 	}
 	
 	struct ksu_get_info_cmd cmd = { .version = version, .flags = 0 };
@@ -92,7 +94,7 @@ static int do_get_info(void __user *arg)
         cmd.flags |= KSU_GET_INFO_FLAG_LATE_LOAD;
     }
     cmd.features = KSU_FEATURE_MAX;
-    cmd.uapi_version = KERNEL_SU_UAPI_VERSION;
+    cmd.uapi_version = uapi_version;
 
 #ifdef CONFIG_KSU_TOOLKIT_SUPPORT
     if (ksuver_override)
