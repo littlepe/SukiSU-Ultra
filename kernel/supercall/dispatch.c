@@ -20,6 +20,7 @@
 #include "feature/kernel_umount.h"
 #include "compat/kernel_compat.h"
 #include "manager/manager_identity.h"
+#include "manager/throne_tracker.h"
 #include "selinux/selinux.h"
 #include "infra/file_wrapper.h"
 #ifdef CONFIG_KSU_TRACEPOINT_HOOK
@@ -61,16 +62,50 @@ static uint32_t ksuver_override = 0;
 static uint32_t ksuflags_override = 0;
 #endif
 
+static int resolve_caller_signature_index(void)
+{
+	u16 appid = ksu_get_uid_t(current_uid()) % PER_USER_RANGE;
+	int signature_index = ksu_get_manager_signature_index_by_appid(appid);
+
+	if (signature_index >= 0)
+		return signature_index;
+
+	/*
+	 * ksud queries GET_INFO as uid 0, so it is not a manager app.
+	 * Use the last registered manager; if none is known yet, scan once.
+	 * Fall back to signature index 0 (SukiSU-Ultra) so ksud does not
+	 * see the raw KERNEL_SU_UAPI_VERSION default (4).
+	 */
+	if (appid != 0)
+		return signature_index;
+
+#ifndef CONFIG_KSU_DISABLE_MANAGER
+	signature_index = ksu_get_preferred_manager_signature_index();
+	if (signature_index >= 0)
+		return signature_index;
+
+	if (!ksu_has_manager()) {
+		static bool ksud_manager_scan_done;
+
+		if (!ksud_manager_scan_done) {
+			ksud_manager_scan_done = true;
+			track_throne(TRACK_THRONE_FORCE_SEARCH_MGR | TRACK_THRONE_FORCE_SYNCHRONOUS);
+			signature_index = ksu_get_preferred_manager_signature_index();
+		}
+	}
+#endif
+	if (signature_index < 0)
+		return 0;
+
+	return signature_index;
+}
+
 static int do_get_info(void __user *arg)
 {
 	u32 version = KERNEL_SU_VERSION;
 	u32 uapi_version = KERNEL_SU_UAPI_VERSION;
-	
-	// Get caller's uid and check if it's a registered manager
-	u16 appid = ksu_get_uid_t(current_uid()) % PER_USER_RANGE;
-	int signature_index = ksu_get_manager_signature_index_by_appid(appid);
-	
-	// If caller is a registered manager, use manager-specific version/UAPI version
+	int signature_index = resolve_caller_signature_index();
+
 	if (signature_index >= 0 && signature_index < 256) {
 		version = ksu_get_version_for_manager((u8)signature_index);
 		uapi_version = ksu_get_uapi_version_for_manager((u8)signature_index);
@@ -115,12 +150,8 @@ static int do_get_info(void __user *arg)
 static int do_get_info_legacy(void __user *arg)
 {
 	u32 version = KERNEL_SU_VERSION;
-	
-	// Get caller's uid and check if it's a registered manager
-	u16 appid = ksu_get_uid_t(current_uid()) % PER_USER_RANGE;
-	int signature_index = ksu_get_manager_signature_index_by_appid(appid);
-	
-	// If caller is a registered manager, use manager-specific version
+	int signature_index = resolve_caller_signature_index();
+
 	if (signature_index >= 0 && signature_index < 256) {
 		version = ksu_get_version_for_manager((u8)signature_index);
 	}

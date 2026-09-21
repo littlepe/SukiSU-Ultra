@@ -218,3 +218,11 @@ int ksu_get_manager_signature_index_by_appid(u16 appid)
     rcu_read_unlock();
     return -ENODATA;
 }
+
+int ksu_get_preferred_manager_signature_index(void)
+{
+    if (ksu_last_manager_appid == KSU_INVALID_APPID)
+        return -ENODATA;
+
+    return ksu_get_manager_signature_index_by_appid(ksu_last_manager_appid);
+}
