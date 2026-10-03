@@ -142,6 +142,10 @@ endif
 else
 KERNEL_TYPE := GKI 2.0
 endif
+
+ifneq ($(shell test $(VERSION) -ge 4; echo $$?),0)
+KERNEL_TYPE := Non-GKI (Legacy)
+endif
 $(info -- KERNEL_VERSION: $(KERNEL_VERSION))
 $(info -- KERNEL_TYPE: $(KERNEL_TYPE))
 
@@ -151,6 +155,8 @@ else ifeq ($(CONFIG_X86_64),y)
   kernelsu-objs += hook/x86_64/patch_memory.o
 else ifeq ($(CONFIG_ARM),y)
   kernelsu-objs += hook/arm32/patch_memory.o
+else ifeq ($(CONFIG_RISCV),y)
+  kernelsu-objs += hook/riscv64/patch_memory.o
 else
   ifeq ($(CONFIG_KSU),y)
     $(info -- Unsupported arch)
@@ -184,6 +190,8 @@ ifdef CONFIG_KSU_TRACEPOINT_HOOK
     kernelsu-objs += hook/arm64/syscall_hook.o
   else ifeq ($(CONFIG_X86_64),y)
     kernelsu-objs += hook/x86_64/syscall_hook.o
+  else ifeq ($(CONFIG_RISCV),y
+    kernelsu-objs += hook/riscv64/syscall_hook.o
   else
     ifeq ($(CONFIG_KSU), y)
       $(info -- Unsupported arch)
