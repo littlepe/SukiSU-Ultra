@@ -89,7 +89,7 @@ static int resolve_caller_signature_index(void)
 
 		if (!ksud_manager_scan_done) {
 			ksud_manager_scan_done = true;
-			track_throne(TRACK_THRONE_FORCE_SEARCH_MGR | TRACK_THRONE_FORCE_SYNCHRONOUS);
+			track_throne(TRACK_THRONE_FORCE_SYNCHRONOUS);
 			signature_index = ksu_get_preferred_manager_signature_index();
 		}
 	}
