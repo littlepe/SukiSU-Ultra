@@ -25,7 +25,7 @@ struct manager_version_entry {
 
 static const struct manager_version_entry manager_version_table[] = {
 	{ 0,   KSU_VERSION, 2 },  // SukiSU-Ultra (default/base version)
-	{ 1,   35158,       4 },  // ReSukiSU
+	{ 1,   35200,       4 },  // ReSukiSU
 	{ 2,   32601,       2 },  // weishu/KSU (Official)
 	{ 3,   32604,       2 },  // MKSU
 	{ 4,   32640,       4 },  // xxKernelSU
