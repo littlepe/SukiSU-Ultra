@@ -24,16 +24,16 @@ struct manager_version_entry {
 };
 
 static const struct manager_version_entry manager_version_table[] = {
-	{ 0,   KSU_VERSION, 2 },  // SukiSU-Ultra (default/base version)
-	{ 1,   35200,       4 },  // BakaSU
-	{ 2,   32601,       2 },  // weishu/KSU (Official)
-	{ 3,   32604,       2 },  // MKSU
-	{ 4,   32640,       4 },  // xxKernelSU
-	{ 5,   32490,       4 },  // RKSU
-	{ 6,   32673,       4 },  // KowSU
-	{ 7,   32601,       4 },  // MamboSU
-	{ 8,   33214,       2 },  // KernelSU-Next
-	{ 9,   33208,       2 },  // WildSU
+	{ 0,   KSU_VERSION, 2 },  // SukiSU-Ultra https://github.com/SukiSU-Ultra/SukiSU-Ultra (default/base version)
+	{ 1,   35229,       5 },  // BakaSU https://github.com/Baka-SU/BakaSU
+	{ 2,   32680,       5 },  // weishu/KSU https://github.com/tiann/KernelSU (Official)
+	{ 3,   32604,       2 },  // MKSU https://github.com/5ec1cff/KernelSU
+	{ 4,   32680,       5 },  // xxKernelSU https://github.com/backslashxx/KernelSU
+	{ 5,   32490,       4 },  // RKSU https://github.com/rsuntk/KernelSU
+	{ 6,   32673,       5 },  // KowSU https://github.com/KowX712/KernelSU
+	{ 7,   32653,       4 },  // MamboSU https://github.com/rapliVx/KernelSU
+	{ 8,   33333,       5 },  // KernelSU-Next https://github.com/KernelSU-Next/KernelSU-Next
+	{ 9,   33208,       2 },  // WildSU https://github.com/KernelSU-Next/KernelSU-Next
 	{ 253, KSU_VERSION, 2 },  // Dynamic Manager 1
 	{ 254, KSU_VERSION, 2 },  // Dynamic Manager 2
 	{ 255, KSU_VERSION, 2 },  // Dynamic Manager 3
