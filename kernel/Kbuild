@@ -113,12 +113,12 @@ endif
 endif
 
 ifeq ($(CONFIG_KSU_MULTI_MANAGER_SUPPORT), y)
-    $(info -- Supported Manager: SukiSU-Ultra, ReSukiSU, KSU, MKSU, xxKernelSU, RKSU, KowSU, MomboSU, KernelSU-Next, WildSU)
+    $(info -- Supported Manager: SukiSU-Ultra, BakaSU, KSU, MKSU, xxKernelSU, RKSU, KowSU, MomboSU, KernelSU-Next, WildSU)
     ccflags-y += -DCONFIG_KSU_MULTI_MANAGER_SUPPORT
 else ifeq ($(CONFIG_KSU_MULTI_MANAGER_SUPPORT), n)
-    $(info -- Supported Manager: SukiSU-Ultra, ReSukiSU)
+    $(info -- Supported Manager: SukiSU-Ultra, BakaSU)
 else
-    $(info -- Supported Manager: SukiSU-Ultra, ReSukiSU)
+    $(info -- Supported Manager: SukiSU-Ultra, BakaSU)
 endif
 
 ifeq ($(CONFIG_KSU_MANUAL_HOOK), y)

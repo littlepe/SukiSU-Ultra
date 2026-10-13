@@ -46,9 +46,9 @@
 #define EXPECTED_HASH_SHIRKNEKO                                                \
     "947ae944f3de4ed4c21a7e4f7953ecf351bfa2b36239da37a34111ad29993eef"
 
-// ReSukiSU/ReSukiSU - ReSukiSU
-#define EXPECTED_SIZE_RESUKISU 0x377
-#define EXPECTED_HASH_RESUKISU                                                 \
+// BakaSU/BakaSU - BakaSU
+#define EXPECTED_SIZE_BAKASU 0x377
+#define EXPECTED_HASH_BAKASU                                                 \
     "d3469712b6214462764a1d8d3e5cbe1d6819a0b629791b9f4101867821f1df64"
 
 // Dynamic Sign
