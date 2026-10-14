@@ -58,10 +58,21 @@ static inline bool ksu_has_manager(void)
 {
     return true;
 }
+
+/* logging helper: no manager list exists in this mode */
+static inline u32 ksu_last_manager_appid_logged(void)
+{
+    return 0xFFFF;
+}
 #else
 #define PER_USER_RANGE 100000
 #define KSU_INVALID_APPID -1
 extern u16 ksu_last_manager_appid;
+
+static inline u32 ksu_last_manager_appid_logged(void)
+{
+    return ksu_last_manager_appid;
+}
 
 static inline void ksu_mark_manager(u32 uid)
 {

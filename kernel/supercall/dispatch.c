@@ -66,9 +66,16 @@ static int resolve_caller_signature_index(void)
 {
 	u16 appid = ksu_get_uid_t(current_uid()) % PER_USER_RANGE;
 	int signature_index = ksu_get_manager_signature_index_by_appid(appid);
+	int ret;
 
-	if (signature_index >= 0)
+	pr_info("resolve_idx: caller uid=%u appid=%u, appid_lookup=%d, last_manager_appid=%u, has_manager=%d\n",
+		ksu_get_uid_t(current_uid()), (unsigned)appid, signature_index,
+		ksu_last_manager_appid_logged(), ksu_has_manager() ? 1 : 0);
+
+	if (signature_index >= 0) {
+		pr_info("resolve_idx: hit registered manager appid=%u -> index=%d\n", (unsigned)appid, signature_index);
 		return signature_index;
+	}
 
 	/*
 	 * ksud queries GET_INFO as uid 0, so it is not a manager app.
@@ -76,11 +83,16 @@ static int resolve_caller_signature_index(void)
 	 * Fall back to signature index 0 (SukiSU-Ultra) so ksud does not
 	 * see the raw KERNEL_SU_UAPI_VERSION default (4).
 	 */
-	if (appid != 0)
+	if (appid != 0) {
+		pr_info("resolve_idx: caller appid=%u not a manager and not root -> keep %d\n", (unsigned)appid,
+			signature_index);
 		return signature_index;
+	}
 
 #ifndef CONFIG_KSU_DISABLE_MANAGER
 	signature_index = ksu_get_preferred_manager_signature_index();
+	pr_info("resolve_idx: preferred lookup (last_manager_appid=%u) -> %d\n", ksu_last_manager_appid_logged(),
+		signature_index);
 	if (signature_index >= 0)
 		return signature_index;
 
@@ -89,15 +101,23 @@ static int resolve_caller_signature_index(void)
 
 		if (!ksud_manager_scan_done) {
 			ksud_manager_scan_done = true;
+			pr_info("resolve_idx: no manager known, forcing throne scan\n");
 			track_throne(TRACK_THRONE_FORCE_SYNCHRONOUS);
 			signature_index = ksu_get_preferred_manager_signature_index();
+			pr_info("resolve_idx: after forced scan (last_manager_appid=%u) -> %d, has_manager=%d\n",
+				ksu_last_manager_appid_logged(), signature_index, ksu_has_manager() ? 1 : 0);
+		} else {
+			pr_info("resolve_idx: forced throne scan already done, not rescanning\n");
 		}
+	} else {
+		pr_info("resolve_idx: manager list not empty but preferred lookup failed -> will fall back\n");
 	}
+#else
+	pr_info("resolve_idx: CONFIG_KSU_DISABLE_MANAGER set, dynamic uapi matching disabled\n");
 #endif
-	if (signature_index < 0)
-		return 0;
-
-	return signature_index;
+	ret = signature_index < 0 ? 0 : signature_index;
+	pr_info("resolve_idx: fallback -> index=%d\n", ret);
+	return ret;
 }
 
 static int do_get_info(void __user *arg)
@@ -130,6 +150,10 @@ static int do_get_info(void __user *arg)
     }
     cmd.features = KSU_FEATURE_MAX;
     cmd.uapi_version = uapi_version;
+
+    pr_info("get_info: caller uid=%u -> signature_index=%d, version=%u, uapi_version=%u (kernel default=%u), flags=0x%x\n",
+	    ksu_get_uid_t(current_uid()), signature_index, cmd.version, cmd.uapi_version,
+	    KERNEL_SU_UAPI_VERSION, cmd.flags);
 
 #ifdef CONFIG_KSU_TOOLKIT_SUPPORT
     if (ksuver_override)

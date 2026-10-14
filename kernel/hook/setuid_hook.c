@@ -164,6 +164,8 @@ int ksu_handle_setuid(uid_t new_uid, uid_t old_uid)
         if (ksu_is_manager_uid(new_uid)) {
             pr_info("install fd for ksu manager(uid=%d)\n", new_uid);
             ksu_mark_manager(new_uid);
+            pr_info("mark_manager: uid=%u -> last_manager_appid=%u\n", new_uid,
+                    ksu_last_manager_appid_logged());
             ksu_set_ksud_status(new_uid);
             ksu_install_fd();
         }

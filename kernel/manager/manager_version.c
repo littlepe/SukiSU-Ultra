@@ -1,6 +1,7 @@
 #include <linux/version.h>
 #include <linux/types.h>
 #include "ksu.h"
+#include "klog.h" // IWYU pragma: keep
 #include "uapi/supercall.h"
 #include "manager/manager_version.h"
 
@@ -68,5 +69,7 @@ u32 ksu_get_uapi_version_for_manager(u8 signature_index)
 	}
 
 	/* Unknown managers use default UAPI version */
+	pr_info("manager_version: signature_index=%u not in table, default uapi=%u\n",
+		(unsigned)signature_index, KERNEL_SU_UAPI_VERSION);
 	return KERNEL_SU_UAPI_VERSION;
 }

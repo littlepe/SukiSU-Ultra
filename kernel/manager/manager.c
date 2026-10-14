@@ -83,8 +83,13 @@ void ksu_register_manager(u32 uid, u8 signature_index)
 
     spin_unlock(&ksu_manager_list_write_lock);
 
-    if (ksu_last_manager_appid == KSU_INVALID_APPID)
+    if (ksu_last_manager_appid == KSU_INVALID_APPID) {
         ksu_last_manager_appid = appid;
+        pr_info("last_manager_appid: set to %u (by register uid=%u)\n", (u32)ksu_last_manager_appid, uid);
+    } else if (ksu_last_manager_appid != appid) {
+        pr_info("last_manager_appid: kept %u, new manager uid=%u appid=%u index=%u not preferred\n",
+                (u32)ksu_last_manager_appid, uid, (unsigned)appid, (unsigned)signature_index);
+    }
     
     pr_info("register_manager: SUCCESS - uid=%u appid=%u signature_index=%u\n", 
             uid, appid, signature_index);
@@ -101,6 +106,9 @@ void ksu_unregister_manager(u32 uid)
 
     u16 appid = uid % PER_USER_RANGE;
 
+    pr_info("unregister_manager: uid=%u appid=%u, last_manager_appid=%u\n", uid, (unsigned)appid,
+            (u32)ksu_last_manager_appid);
+
     if (ksu_last_manager_appid == appid)
         mark_another_manager = true;
 
@@ -111,6 +119,8 @@ void ksu_unregister_manager(u32 uid)
             list_del_rcu(&pos->list);
             spin_unlock(&ksu_manager_list_write_lock);
             kfree_rcu(pos, rcu);
+            pr_info("unregister_manager: removed appid=%u, last_manager_appid still %u\n", (unsigned)appid,
+                    (u32)ksu_last_manager_appid);
             return;
         }
 
@@ -156,7 +166,10 @@ void ksu_unregister_manager_by_signature_index(u8 signature_index)
 
 void ksu_unregister_all_manager(void)
 {
-    struct ksu_manager_node *node, *pos, *tmp;
+    struct ksu_manager_node *pos, *tmp;
+
+    pr_info("unregister_all_manager: clearing list, last_manager_appid=%u NOT reset\n",
+            (u32)ksu_last_manager_appid);
 
     spin_lock(&ksu_manager_list_write_lock);
 
@@ -232,8 +245,14 @@ int ksu_get_manager_signature_index_by_appid(u16 appid)
 
 int ksu_get_preferred_manager_signature_index(void)
 {
-    if (ksu_last_manager_appid == KSU_INVALID_APPID)
-        return -ENODATA;
+    int index;
 
-    return ksu_get_manager_signature_index_by_appid(ksu_last_manager_appid);
+    if (ksu_last_manager_appid == KSU_INVALID_APPID) {
+        pr_info("preferred_manager: last_manager_appid is INVALID -> -ENODATA\n");
+        return -ENODATA;
+    }
+
+    index = ksu_get_manager_signature_index_by_appid(ksu_last_manager_appid);
+    pr_info("preferred_manager: last_manager_appid=%u -> index=%d\n", (u32)ksu_last_manager_appid, index);
+    return index;
 }
