@@ -97,17 +97,23 @@ static int resolve_caller_signature_index(void)
 		return signature_index;
 
 	if (!ksu_has_manager()) {
-		static bool ksud_manager_scan_done;
+		/*
+		 * The first query often arrives before /data/app is scannable.
+		 * Retry a bounded number of times instead of giving up forever,
+		 * otherwise every later GET_INFO falls back to index 0 (uapi 2).
+		 */
+		static int ksud_manager_scan_attempts;
 
-		if (!ksud_manager_scan_done) {
-			ksud_manager_scan_done = true;
-			pr_info("resolve_idx: no manager known, forcing throne scan\n");
+		if (ksud_manager_scan_attempts < 3) {
+			ksud_manager_scan_attempts++;
+			pr_info("resolve_idx: no manager known, forcing throne scan (%d/3)\n",
+				ksud_manager_scan_attempts);
 			track_throne(TRACK_THRONE_FORCE_SYNCHRONOUS);
 			signature_index = ksu_get_preferred_manager_signature_index();
 			pr_info("resolve_idx: after forced scan (last_manager_appid=%u) -> %d, has_manager=%d\n",
 				ksu_last_manager_appid_logged(), signature_index, ksu_has_manager() ? 1 : 0);
 		} else {
-			pr_info("resolve_idx: forced throne scan already done, not rescanning\n");
+			pr_info("resolve_idx: forced throne scan attempts exhausted\n");
 		}
 	} else {
 		pr_info("resolve_idx: manager list not empty but preferred lookup failed -> will fall back\n");
@@ -455,7 +461,8 @@ static int do_get_manager_appid(void __user *arg)
     struct ksu_get_manager_appid_cmd cmd;
 
 #ifndef CONFIG_KSU_DISABLE_MANAGER
-    cmd.appid = ksu_last_manager_appid;
+    /* INVALID is 0xFFFF in a u16; report it as -1 so userspace sees the documented sentinel */
+    cmd.appid = (ksu_last_manager_appid == KSU_INVALID_APPID) ? (__u32)-1 : ksu_last_manager_appid;
 #else
     cmd.appid = 0;
 #endif

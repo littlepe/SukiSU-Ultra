@@ -125,7 +125,8 @@ void ksu_unregister_manager(u32 uid)
         }
 
         if (mark_another_manager) {
-            ksu_last_manager_appid = appid;
+            /* pick another still-registered manager, not the one being removed */
+            ksu_last_manager_appid = pos->appid;
             mark_another_manager = false;
         }
     }
@@ -168,7 +169,7 @@ void ksu_unregister_all_manager(void)
 {
     struct ksu_manager_node *pos, *tmp;
 
-    pr_info("unregister_all_manager: clearing list, last_manager_appid=%u NOT reset\n",
+    pr_info("unregister_all_manager: clearing list, last_manager_appid=%u -> reset to INVALID\n",
             (u32)ksu_last_manager_appid);
 
     spin_lock(&ksu_manager_list_write_lock);
@@ -179,6 +180,12 @@ void ksu_unregister_all_manager(void)
     }
 
     spin_unlock(&ksu_manager_list_write_lock);
+
+    /*
+     * Every entry is gone, so a stale appid here would never resolve again
+     * (register_manager only assigns while the value is INVALID).
+     */
+    ksu_last_manager_appid = KSU_INVALID_APPID;
 }
 
 bool ksu_has_manager(void)
@@ -245,14 +252,30 @@ int ksu_get_manager_signature_index_by_appid(u16 appid)
 
 int ksu_get_preferred_manager_signature_index(void)
 {
-    int index;
+    struct ksu_manager_node *pos;
+    int index = -ENODATA;
 
-    if (ksu_last_manager_appid == KSU_INVALID_APPID) {
-        pr_info("preferred_manager: last_manager_appid is INVALID -> -ENODATA\n");
-        return -ENODATA;
+    if (ksu_last_manager_appid != KSU_INVALID_APPID) {
+        index = ksu_get_manager_signature_index_by_appid(ksu_last_manager_appid);
+        pr_info("preferred_manager: last_manager_appid=%u -> index=%d\n", (u32)ksu_last_manager_appid, index);
+        if (index >= 0)
+            return index;
+    } else {
+        pr_info("preferred_manager: last_manager_appid is INVALID\n");
     }
 
-    index = ksu_get_manager_signature_index_by_appid(ksu_last_manager_appid);
-    pr_info("preferred_manager: last_manager_appid=%u -> index=%d\n", (u32)ksu_last_manager_appid, index);
+    /*
+     * last_manager_appid can be INVALID while the list is already populated
+     * (register assigns it outside the lock, or after unregister_all reset).
+     * Never fall through to a bogus default: use any registered manager.
+     */
+    rcu_read_lock();
+    list_for_each_entry_rcu (pos, &ksu_manager_appid_list, list) {
+        index = pos->signature_index;
+        pr_info("preferred_manager: fallback to list entry appid=%u index=%d\n", (unsigned)pos->appid, index);
+        break;
+    }
+    rcu_read_unlock();
+
     return index;
 }

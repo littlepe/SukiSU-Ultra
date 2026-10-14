@@ -66,7 +66,12 @@ static inline u32 ksu_last_manager_appid_logged(void)
 }
 #else
 #define PER_USER_RANGE 100000
-#define KSU_INVALID_APPID -1
+/*
+ * Must be a u16 value: ksu_last_manager_appid and last_each_alive_appid are
+ * u16, so comparing them against a plain -1 would promote the u16 to int
+ * (65535 == -1 is always false) and the "is invalid" checks would never fire.
+ */
+#define KSU_INVALID_APPID ((u16)-1)
 extern u16 ksu_last_manager_appid;
 
 static inline u32 ksu_last_manager_appid_logged(void)
