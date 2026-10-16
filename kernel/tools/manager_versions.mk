@@ -9,21 +9,21 @@
 # version/uapi_version in manager_version.c, update these lines to match.
 
 # Base driver version, also reported for SukiSU-Ultra (signature index 0).
-KSU_VERSION := 40900
+KSU_VERSION := 40994
 
 $(info -- Default version: $(KSU_VERSION))
 $(info -- Unknown manager fallback: version $(KSU_VERSION), uapi 4 (KERNEL_SU_UAPI_VERSION))
 $(info -- Manager Versions: [version / uapi])
-$(info --   [0]   SukiSU-Ultra:   $(KSU_VERSION) / 2)
+$(info --   [0]   SukiSU-Ultra:   $(KSU_VERSION) / 5)
 $(info --   [1]   BakaSU:       35229 / 5)
 $(info --   [2]   weishu/KSU:     32680 / 5)
 $(info --   [3]   MKSU:           32604 / 2)
 $(info --   [4]   xxKernelSU:     32680 / 5)
 $(info --   [5]   RKSU:           32490 / 4)
-$(info --   [6]   KowSU:          32673 / 5)
-$(info --   [7]   MamboSU:        32653 / 4)
-$(info --   [8]   KernelSU-Next:  33333 / 5)
+$(info --   [6]   KowSU:          32715 / 5)
+$(info --   [7]   MamboSU:        32543 / 4)
+$(info --   [8]   KernelSU-Next:  33355 / 5)
 $(info --   [9]   WildSU:         33208 / 2)
-$(info --   [253] Dynamic 1:      $(KSU_VERSION) / 2)
-$(info --   [254] Dynamic 2:      $(KSU_VERSION) / 2)
-$(info --   [255] Dynamic 3:      $(KSU_VERSION) / 2)
+$(info --   [253] Dynamic 1:      $(KSU_VERSION) / 5)
+$(info --   [254] Dynamic 2:      $(KSU_VERSION) / 5)
+$(info --   [255] Dynamic 3:      $(KSU_VERSION) / 5)
